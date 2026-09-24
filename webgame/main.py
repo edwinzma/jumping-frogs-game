@@ -6,7 +6,7 @@ import asyncio
 import pygame as pg
 from pygame import mixer
 
-import os
+import sys
 import math
 
 from button import Button
@@ -102,6 +102,13 @@ def get_level_rects() -> list:
             level_rects.append(rect)
     return level_rects
 
+def draw_speaker(screen, speaker_on, speaker_off, speaker_rect, is_music_on):
+    print("drawing a speaker icon")
+    if is_music_on:
+        screen.blit(speaker_on, speaker_rect)
+    else:
+        screen.blit(speaker_off, speaker_rect)
+
 # async is needed for webapp
 async def main():
 
@@ -120,18 +127,25 @@ async def main():
     is_selected: bool       = False #Has the player selected anything. Start of as False
     indicator_scalar: float = 1.4 #F stands for factor, which is the factor by which the indicator width and height are multiplied by the width and height of the lilypad
     clicked: bool           = False #Is the mouse clicked. Used to prevent multiple clicks from being registered when the mouse is held down.
-    level_number: int      = 1 #The current level the player is on. Starts at 1.
+    level_number: int       = 1 #The current level the player is on. Starts at 1.
+    is_music_on: bool       = True
 
-    #initialize Pygame
-    pg.init()
+    in_browser = sys.platform == "emscripten"
+    if in_browser:
+        # pg.init() would also open SDL audio, even though music uses the browser.
+        pg.display.init()
+        pg.font.init()
+    else:
+        mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=4096)
+        pg.init()
     screen = pg.display.set_mode(SIZE)
     pg.display.set_caption("Jumping Frogs")
     clock = pg.time.Clock()
     my_font = pg.font.SysFont("Comic Sans MS", 30)
+
     
     #apply changes
     pg.display.update()
-
 
     def start_level(level_number:int, starting_board:tuple) ->None:
 
@@ -146,6 +160,7 @@ async def main():
         nonlocal arrow_index
         nonlocal is_selected
         nonlocal game_state
+        nonlocal lilypad_rects
 
 
         lilypad_count = len(starting_board)
@@ -161,9 +176,10 @@ async def main():
         lilypad_width = set_lilypad_width(lilypad_count, WIDTH)
         lilypad_height = set_lilypad_height()
         lilypad_rect = pg.Rect(0,0,lilypad_width, lilypad_height)
-        lilypad = pg.transform.scale(Lilypad_original, (lilypad_width, lilypad_height))
-        indicator = pg.transform.scale(indicator_original, (int(lilypad_width*indicator_scalar), int(lilypad_height*indicator_scalar)))
-        indicator_rect = pg.Rect(0,0,int(lilypad_width*indicator_scalar), int(lilypad_height*indicator_scalar))
+        # Reuse graphics prepared before music playback; no resizing here.
+        lilypad, indicator, lilypad_rects = level_graphics[lilypad_count]
+        lilypad_rect = lilypad.get_rect()
+        indicator_rect = indicator.get_rect()
 
     level_rects = get_level_rects()
     level_to_home_button_rect = pg.Rect(1045, 605, 206, 74)
@@ -228,22 +244,82 @@ async def main():
     htp_button_rect = pg.Rect(472, 447, 343, 77)
     levels_button_rect = pg.Rect(472,554, 343, 77)
 
+    speaker_on_original = pg.image.load("speaker.png").convert_alpha()
+    speaker_on = pg.transform.scale(speaker_on_original, (100,100))
+    speaker_off_original = pg.image.load("speaker-off.png").convert_alpha()
+    speaker_off = pg.transform.scale(speaker_off_original, (100,100))
+    speaker_rect = speaker_on.get_rect()
+    speaker_rect.topleft = (50,50)
+
 
 
 
     # Tutorial owns its page number and example; it never changes the real board.
     tutorial = HowToPlay(pond, frog_original, Lilypad_original)
 
+    # Prepare every board size before audio starts.
+    level_graphics = {}
+    for count in sorted({lilypad_count} | {len(board) for board in LEVELS.values()}):
+        pad_width = set_lilypad_width(count, WIDTH)
+        pad = pg.transform.scale(Lilypad_original, (pad_width, lilypad_height))
+        ripple = pg.transform.scale(
+            indicator_original,
+            (int(pad_width * indicator_scalar), int(lilypad_height * indicator_scalar))
+        )
+        rects = []
+        for i in range(count):
+            rect = pad.get_rect()
+            rect.center = ((i + 0.5) * WIDTH // count, int(0.8 * HEIGHT))
+            rects.append(rect)
+        level_graphics[count] = (pad, ripple, rects)
+        await asyncio.sleep(0)
+    lilypad, indicator, lilypad_rects = level_graphics[lilypad_count]
+    lilypad_rect = lilypad.get_rect()
+    indicator_rect = indicator.get_rect()
+
+    # Text rendering is done once, not on each frame of the win screen.
+    win_text = {}
+    for number in sorted(set(LEVELS) | {level_number}):
+        win_text[number] = (
+            my_font.render("Congrats! You win level " + str(number) + "!", False, (0, 0, 0)),
+            my_font.render("Press any key to continue to level  " + str(number + 1) + ".", False, (0, 0, 0))
+        )
+        await asyncio.sleep(0)
+    completed_text = my_font.render(
+        "You have completed all levels! Press any key to return to the home screen.",
+        False, (0, 0, 0)
+    )
+
+    # Start music only after image loading, resizing and tutorial setup finish.
+    if not in_browser:
+        mixer.music.load("02_Lily_Pad_Hop.ogg")
+        mixer.music.set_volume(0.3)
+    screen.blit(homescreen, homescreen_rect)
+    pg.display.update()
+    await asyncio.sleep(0)
+    if in_browser:
+        from browser_support import start_music, stop_music
+        start_music("02_Lily_Pad_Hop.ogg")
+        if not is_music_on:
+            stop_music()
+    elif is_music_on:
+        mixer.music.play(-1, fade_ms=1000)
+
     #PART 3: Main loop
     running = True
     while running:
-        clock.tick(60) #Set frame-rate to 60 fps
+        # Let Pygbag/browser schedule frames instead of blocking in tick(60).
+        # Desktop still uses the original 60 FPS limit.
+        if not in_browser:
+            clock.tick(60)
         pos = pg.mouse.get_pos() #pos is the position of the mouse on the game-screen
+
         #event handler
         for event in pg.event.get():
             #If user quits the game, the game quits in order to exit the while loop.
             if event.type == pg.QUIT:
                 running = False
+                break
 
             if game_state == "htp":
                 next_state = tutorial.handle_event(event)
@@ -262,7 +338,6 @@ async def main():
 
                                 level_number = index + 1
 
-                                print("Selected level:", level_number)
                                 start_level(level_number, LEVELS[level_number])
                                 
                         if level_to_home_button_rect.collidepoint(pos):
@@ -270,23 +345,16 @@ async def main():
 
             elif game_state == "won":
                 if event.type == pg.KEYDOWN or (event.type == pg.MOUSEBUTTONDOWN and event.button == 1):
-                    level_number += 1
-                    if level_number in LEVELS:
+                    if level_number + 1 in LEVELS:
+                        level_number += 1
                         start_level(level_number, LEVELS[level_number])
                         game_state = "playing"
                     else:
-                        screen.fill("light blue")
-                        text_surface = my_font.render("You have completed all levels! Press any key to return to the home screen.", False, (0, 0, 0))
-                        screen.blit(text_surface, (100, 300))
-                        pg.display.update()
-                        waiting_for_key = True
-                        while waiting_for_key:
-                            for event in pg.event.get():
-                                if event.type == pg.KEYDOWN or (event.type == pg.MOUSEBUTTONDOWN and event.button == 1):
-                                    waiting_for_key = False
-                                    game_state = "home"
-    
-                    
+                        game_state = "complete"
+
+            elif game_state == "complete":
+                if event.type == pg.KEYDOWN or (event.type == pg.MOUSEBUTTONDOWN and event.button == 1):
+                    game_state = "home"
 
             elif game_state == "playing":
 
@@ -359,6 +427,9 @@ async def main():
                         arrow_index = math.ceil(lilypad_count/2) -1
                         
 
+        if not running:
+            break
+
         #Drawing part of the loop
         if game_state == "home":
             
@@ -381,12 +452,18 @@ async def main():
                 clicked = False
 
             screen.blit(homescreen, homescreen_rect)
+            draw_speaker(screen, speaker_on, speaker_off, speaker_rect, is_music_on)
+
+        elif game_state == "complete":
+            screen.fill("light blue")
+            screen.blit(completed_text, (100, 300))
 
         elif game_state == "htp":
             tutorial.draw(screen)
 
         elif game_state == "levels":
             screen.blit(levelscreen, levelscreen_rect)
+            draw_speaker(screen, speaker_on, speaker_off, speaker_rect, is_music_on)
 
             # for i in range(0,len(level_rects)):
             #     pg.draw.rect(screen, "red", level_rects[i], 3)
@@ -408,6 +485,7 @@ async def main():
 
             #Fill background
             screen.blit(pond, pond_rect)
+            draw_speaker(screen, speaker_on, speaker_off, speaker_rect, is_music_on)
 
             #Menu button
             screen.blit(menu_button, menu_button_rect)
@@ -430,13 +508,9 @@ async def main():
                     indicator_rect.center = ((indicator_right + 0.5)*WIDTH//lilypad_count, int(0.8*HEIGHT))
                     screen.blit(indicator,indicator_rect)
 
-            #Draw the lilypads
-            lilypad_rects = []
-            for i in range(0, lilypad_count):
-                lilypad_rect = lilypad.get_rect()
-                lilypad_rect.center = ((i + 0.5)*WIDTH//lilypad_count, int(0.8*HEIGHT))
+            # Reuse the rectangles prepared for this board size.
+            for lilypad_rect in lilypad_rects:
                 screen.blit(lilypad, lilypad_rect)
-                lilypad_rects.append(lilypad_rect)
 
             #Draw an ellipse around the lilypad the mouse is hovering over.
             for rect in lilypad_rects:
@@ -463,29 +537,43 @@ async def main():
 
             if player_has_won(board) and game_state == "playing":
                 game_state = "won"
-                continue
                 
         if game_state == "won":
             screen.blit(wooden_sign, wooden_sign_rect)
-            text_surface1 = my_font.render("Congrats! You win level "+ str(level_number) + "!", False, (0, 0, 0))
-            text_surface2 = my_font.render("Press any key to continue to level  "+ str(level_number + 1) + ".", False, (0, 0, 0))
-            
+            text_surface1, text_surface2 = win_text[level_number]
+
             screen.blit(text_surface1, (434, 123))
             screen.blit(text_surface2, (434, 232))
 
 
         if pg.mouse.get_pressed()[0] == 1 and clicked == False:
             clicked = True
-            print(pos)
 
         if pg.mouse.get_pressed()[0] == 0:
             clicked = False      
 
             
     
-
+        pg.display.update()
+        # Every screen returns control to the browser once per frame.
         await asyncio.sleep(0)
 
-        pg.display.update()
+    # Graceful quit when the game receives QUIT. Closing a browser tab can
+    # terminate execution before this runs, so tab-close clicks aren't guaranteed.
+    if in_browser:
+        stop_music()
+    elif mixer.get_init():
+        volume = mixer.music.get_volume()
+        fade_started = pg.time.get_ticks()
+        while mixer.music.get_busy():
+            progress = min((pg.time.get_ticks() - fade_started) / 200, 1.0)
+            mixer.music.set_volume(volume * (1.0 - progress))
+            if progress >= 1.0:
+                break
+            pg.event.pump()
+            await asyncio.sleep(0.01)
+        mixer.music.stop()
+        mixer.stop()
     pg.quit()
+
 asyncio.run(main())

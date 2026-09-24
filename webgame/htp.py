@@ -14,6 +14,7 @@ class HowToPlay:
         self.menu_rect = pg.Rect(64, 624, 200, 54)
         self.back_rect = pg.Rect(824, 624, 170, 54)
         self.next_rect = pg.Rect(1010, 624, 206, 54)
+        self._text_cache = {}
         self.reset()
 
     def reset(self):
@@ -56,7 +57,10 @@ class HowToPlay:
     def text(self, screen, message, center, small=False, title=False,
              color=(31, 65, 43)):
         font = self.title_font if title else self.small_font if small else self.body_font
-        surface = font.render(message, True, color)
+        key = (message, small, title, color)
+        if key not in self._text_cache:
+            self._text_cache[key] = font.render(message, True, color)
+        surface = self._text_cache[key]
         screen.blit(surface, surface.get_rect(center=center))
 
     def button(self, screen, rect, label, enabled=True):
