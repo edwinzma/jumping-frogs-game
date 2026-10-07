@@ -147,6 +147,19 @@ async def main():
     #apply changes
     pg.display.update()
 
+    def toggle_music():
+
+        nonlocal is_music_on
+        nonlocal main_channel
+
+        is_music_on = not is_music_on
+        if is_music_on:
+            mixer.music.unpause()
+            main_channel.set_volume(0.1)
+        else:
+            mixer.music.pause()
+            main_channel.set_volume(0)
+
     def start_level(level_number:int, starting_board:tuple) ->None:
 
         nonlocal lilypad_count
@@ -290,10 +303,14 @@ async def main():
         False, (0, 0, 0)
     )
 
+    main_channel = mixer.Channel(0)
+    jump_sound = mixer.Sound("Jumping_Frogs_Sound_Effects/jump_01.ogg")
+    jump_sound.set_volume(0.1)
+
     # Start music only after image loading, resizing and tutorial setup finish.
     if not in_browser:
         mixer.music.load("02_Lily_Pad_Hop.ogg")
-        mixer.music.set_volume(0.3)
+        mixer.music.set_volume(0.1)
     screen.blit(homescreen, homescreen_rect)
     pg.display.update()
     await asyncio.sleep(0)
@@ -321,6 +338,11 @@ async def main():
                 running = False
                 break
 
+            if game_state == "home":
+                if event.type == pg.MOUSEBUTTONDOWN:
+                    if event.button == 1 and (clicked == False) and speaker_rect.collidepoint(event.pos):
+                        toggle_music()
+
             if game_state == "htp":
                 next_state = tutorial.handle_event(event)
                 if next_state is not None:
@@ -331,7 +353,11 @@ async def main():
             elif game_state == "levels": #Player is at the levels-screen
                 if event.type == pg.MOUSEBUTTONDOWN:
                     if event.button == 1:
+                        #Toggle music
+                        if speaker_rect.collidepoint(event.pos) and clicked == False:
+                            toggle_music()
 
+                        #Select levels
                         for index, rect in enumerate(level_rects):
 
                             if rect.collidepoint(event.pos):
@@ -339,7 +365,7 @@ async def main():
                                 level_number = index + 1
 
                                 start_level(level_number, LEVELS[level_number])
-                                
+                        #Home button
                         if level_to_home_button_rect.collidepoint(pos):
                             game_state = "home"
 
@@ -372,6 +398,11 @@ async def main():
                                     arrow_index = i
                                     is_selected = False
                                     board_history.append(tuple(board))
+                                    main_channel.play(jump_sound)
+
+                        if speaker_rect.collidepoint(event.pos) and clicked == False:
+                            toggle_music()
+
 
 
                 #All the keyboard controls for the game are handled here.
@@ -396,6 +427,7 @@ async def main():
                             arrow_index = landing_index
                             is_selected = False
                             board_history.append(tuple(board))
+                            main_channel.play(jump_sound)
 
                     elif event.key in [pg.K_d, pg.K_RIGHT] and is_selected == True:
                         landing_index = get_landing_index(arrow_index, board[arrow_index],"right")
@@ -405,6 +437,7 @@ async def main():
                             arrow_index = landing_index
                             is_selected = False
                             board_history.append(tuple(board))
+                            main_channel.play(jump_sound)
                             
                     #r is restart
                     elif event.key in [pg.K_r]:
@@ -426,7 +459,7 @@ async def main():
                         is_selected = False
                         arrow_index = math.ceil(lilypad_count/2) -1
                         
-
+        #Updating part of the loop
         if not running:
             break
 
