@@ -1,7 +1,7 @@
 """
 Created by Edwin Ma. Check out my GitHub at: 
 """
-
+print("starting game...")
 import asyncio
 import pygame as pg
 from pygame import mixer
@@ -12,6 +12,10 @@ import math
 from button import Button
 from htp import HowToPlay
 from levels import LEVELS
+print("imports done")
+
+#TODO fix music when playing in webgame, because it does not work at the moment.
+MUSIC = False
 
 #PART 1: Define functions
 def player_has_won(board_state:list) -> bool:
@@ -103,11 +107,12 @@ def get_level_rects() -> list:
     return level_rects
 
 def draw_speaker(screen, speaker_on, speaker_off, speaker_rect, is_music_on):
-    print("drawing a speaker icon")
     if is_music_on:
         screen.blit(speaker_on, speaker_rect)
     else:
         screen.blit(speaker_off, speaker_rect)
+
+print("functions done")
 
 # async is needed for webapp
 async def main():
@@ -131,13 +136,18 @@ async def main():
     is_music_on: bool       = True
 
     in_browser = sys.platform == "emscripten"
-    if in_browser:
-        # pg.init() would also open SDL audio, even though music uses the browser.
-        pg.display.init()
-        pg.font.init()
+    if MUSIC:
+        if in_browser:
+            print("initializing pygame for browser...")
+            #pg.init() would also open SDL audio, even though music uses the browser.
+            pg.display.init()
+            pg.font.init()
+        else:
+            mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=4096)
+            pg.init()
     else:
-        mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=4096)
         pg.init()
+
     screen = pg.display.set_mode(SIZE)
     pg.display.set_caption("Jumping Frogs")
     clock = pg.time.Clock()
@@ -258,9 +268,9 @@ async def main():
     levels_button_rect = pg.Rect(472,554, 343, 77)
 
     speaker_on_original = pg.image.load("speaker.png").convert_alpha()
-    speaker_on = pg.transform.scale(speaker_on_original, (100,100))
+    speaker_on = pg.transform.scale(speaker_on_original, (50,50))
     speaker_off_original = pg.image.load("speaker-off.png").convert_alpha()
-    speaker_off = pg.transform.scale(speaker_off_original, (100,100))
+    speaker_off = pg.transform.scale(speaker_off_original, (50,50))
     speaker_rect = speaker_on.get_rect()
     speaker_rect.topleft = (50,50)
 
@@ -303,24 +313,26 @@ async def main():
         False, (0, 0, 0)
     )
 
-    main_channel = mixer.Channel(0)
-    jump_sound = mixer.Sound("Jumping_Frogs_Sound_Effects/jump_01.ogg")
-    jump_sound.set_volume(0.1)
+    
+    if MUSIC:
+        # Start music only after image loading, resizing and tutorial setup finish.
+        if not in_browser:
+            mixer.music.load("02_Lily_Pad_Hop.ogg")
+            mixer.music.set_volume(0.1)
+        screen.blit(homescreen, homescreen_rect)
+        pg.display.update()
+        await asyncio.sleep(0)
+        if in_browser:
+            from browser_support import start_music, stop_music
+            start_music("02_Lily_Pad_Hop.ogg")
+            if not is_music_on:
+                stop_music()
+        elif is_music_on:
+            mixer.music.play(-1, fade_ms=1000)
 
-    # Start music only after image loading, resizing and tutorial setup finish.
-    if not in_browser:
-        mixer.music.load("02_Lily_Pad_Hop.ogg")
-        mixer.music.set_volume(0.1)
-    screen.blit(homescreen, homescreen_rect)
-    pg.display.update()
-    await asyncio.sleep(0)
-    if in_browser:
-        from browser_support import start_music, stop_music
-        start_music("02_Lily_Pad_Hop.ogg")
-        if not is_music_on:
-            stop_music()
-    elif is_music_on:
-        mixer.music.play(-1, fade_ms=1000)
+        main_channel = mixer.Channel(0)
+        jump_sound = mixer.Sound("Jumping_Frogs_Sound_Effects/jump_01.ogg")
+        jump_sound.set_volume(0.1)
 
     #PART 3: Main loop
     running = True
@@ -355,7 +367,8 @@ async def main():
                     if event.button == 1:
                         #Toggle music
                         if speaker_rect.collidepoint(event.pos) and clicked == False:
-                            toggle_music()
+                            if MUSIC:
+                                toggle_music()
 
                         #Select levels
                         for index, rect in enumerate(level_rects):
@@ -427,7 +440,8 @@ async def main():
                             arrow_index = landing_index
                             is_selected = False
                             board_history.append(tuple(board))
-                            main_channel.play(jump_sound)
+                            if MUSIC:
+                                main_channel.play(jump_sound)
 
                     elif event.key in [pg.K_d, pg.K_RIGHT] and is_selected == True:
                         landing_index = get_landing_index(arrow_index, board[arrow_index],"right")
@@ -437,7 +451,8 @@ async def main():
                             arrow_index = landing_index
                             is_selected = False
                             board_history.append(tuple(board))
-                            main_channel.play(jump_sound)
+                            if MUSIC:
+                                main_channel.play(jump_sound)
                             
                     #r is restart
                     elif event.key in [pg.K_r]:
@@ -562,7 +577,7 @@ async def main():
             if lilypad_count <= 10:
                 frog_stack_spacing = int(0.5*frog_width)
             else:
-                 frog_stack_spacing = int(0.42*frog_width)
+                frog_stack_spacing = int(0.42*frog_width)
             for i in range(0, lilypad_count):
                 for ii in range(board[i]-1, -1, -1):
                     frog_rect.midbottom = ((i + 0.5)*WIDTH/lilypad_count, 0.8*HEIGHT-(frog_stack_spacing*ii))
@@ -609,4 +624,6 @@ async def main():
         mixer.stop()
     pg.quit()
 
-asyncio.run(main())
+
+if __name__ == "__main__":
+    asyncio.run(main())

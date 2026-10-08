@@ -1,5 +1,5 @@
 # jumping-frogs-game
-A puzzle game about jumping frogs
+A fun math puzzle game about jumping frogs, where n frogs jump n lily pads. The goal of the game is to get all frogs onto the same lily pad
 
 
 # Jumping Frogs
@@ -7,7 +7,7 @@ A puzzle game about jumping frogs
 A small and fun puzzle game built in Python with Pygame.
 
 🎮 **Play it in your browser:**
-https://edlovesgamesandpuzzles.github.io/jumping-frogs-game/
+https://edwinzma.github.io/jumping-frogs-game/
 
 This is still an early prototype, so the visuals and interface are deliberately simple.
 
@@ -50,9 +50,9 @@ In general, a group of **n frogs moves 2n − 1 lily pads**.
 
 ## What I learned from this project
 
--How to use GitHub
--The basics of Pygame
--How to build a webapp using pygbag
+-How to use git and gitHub. How add, commit and push work. What branching is.
+-How to use Pygame
+-How to build a webapp using pygbag and asyncio.
 
 ## Next steps in this project
 
