@@ -411,7 +411,8 @@ async def main():
                                     arrow_index = i
                                     is_selected = False
                                     board_history.append(tuple(board))
-                                    main_channel.play(jump_sound)
+                                    if MUSIC:
+                                        main_channel.play(jump_sound)
 
                         if speaker_rect.collidepoint(event.pos) and clicked == False:
                             toggle_music()
