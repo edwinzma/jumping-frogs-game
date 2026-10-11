@@ -1,139 +1,29 @@
 """
-Created by Edwin Ma. Check out my GitHub at: 
+Created by Edwin Ma. Check out my GitHub at: https://github.com/edwinzma
 """
-print("starting game...")
+import sys
+import math
+import config
+
 import asyncio
 import pygame as pg
 from pygame import mixer
 
-import sys
-import math
-
-from button import Button
+from config import SIZE, WIDTH, HEIGHT, lily_count, lily_width, lily_height, frog_width, arrow_rect, indicator_scalar, is_music_on, LEVELS, MUSIC
 from htp import HowToPlay
-from levels import LEVELS
-print("imports done")
+from utils.helpers import draw_speaker, player_has_won, get_landing_index, is_valid_landing, draw_arrow, set_lily_width, set_lily_height, get_level_rectangles
 
-#TODO fix music when playing in webgame, because it does not work at the moment.
-MUSIC = False
-
-#PART 1: Define functions
-def player_has_won(board_state:list) -> bool:
-    """Returns True if the player has won the game, False otherwise. The player wins if all frogs are on the same lilypad."""
-    return max(board_state) == sum(board_state)
-
-
-def get_jump_distance(frog_count:int) -> int:
-    """Returns the distance a frog can jump based on the number of frogs on the lilypad. The distance is 2*frog_count - 1. If there are no frogs, the distance is 0."""
-    if frog_count == 0:
-        return 0
-    else:
-        return 2*frog_count -1
-
-def get_landing_index(arrow_index:int, frog_count:int, direction:str) -> int:
-    """Returns the index of the lilypad the frog will land on"""
-    distance = get_jump_distance(frog_count)
-
-    if direction == "left":
-        return arrow_index -distance
-    elif direction == "right":
-        return arrow_index + distance
-
-def is_valid_landing(landing_index:int, board:list = []) -> bool:
-    """Returns True if the landing index is valid, False otherwise. A landing index is valid if it is within the bounds of the board and there is at least one frog on the lilypad."""
-    if landing_index >=0 and landing_index <len(board) and board[landing_index] > 0:
-        return True
-    else:
-        return False
-
-def draw_lilypads(screen:tuple, width:int, height:int, image, lilypad_count:int) -> int:
-    """Draws the lilypads on the screen. The lilypads are evenly spaced across the width of the screen."""
-    for i in range(0,lilypad_count):
-        lilypad_rect = image.get_rect()
-        lilypad_rect.center = ((i+0.5)*width//lilypad_count, int(0.8*height))
-
-        dummy = None
-        if Button(image, lilypad_rect).draw(screen):
-            dummy = i
-    return dummy
-
-def draw_arrow(screen, width, height, image, arrow_index, lilypad_count, is_selected):
-    """Draws the arrow on the screen."""
-    arrow_rect = image.get_rect()
-    arrow_rect.center = ((arrow_index+0.5)*width/lilypad_count, 0.3*height+is_selected*0.1*height)
-    screen.blit(image, arrow_rect)
-
-def set_lilypad_width(lilypad_count:int, width:int) -> int:
-    """Returns the width of the lilypad based on the number of lilypads and the width of the screen. 
-    The width is set to be the minimum of the width of the screen divided by the number of lilypads minus 10 and 200. 
-    This ensures that the lilypads are not too small or too large."""
-    return int(min(width/lilypad_count - 10, 200))
-
-def set_lilypad_height() -> int:
-    """Returns the height of the lilypad. The height is set to be 70 pixels for now."""
-    return 70
-
-def set_frog_width(lilypad_count:int = 4, WIDTH  = 1280) -> int:
-    """Returns the width of the frog. The width is set to be 102 pixels for now."""
-    return int(min(102, WIDTH/lilypad_count - 10))
-
-def set_frog_height(frog_width:int = 102) -> int:
-    """Returns the height of the frog. The height is set to be 70 pixels for now."""
-    return int(frog_width * 70 / 102)
-
-def get_level_rects() -> list:
-    """Returns a list of pygame.Rect objects representing the clickable areas for each level button on the level selection screen."""
-    level_rects = []
-    start_x = 330
-    start_y = 222
-    spacing_x = 127
-    spacing_y = 94
-    button_width = 116
-    button_height = 82
-
-    for row in range(4):
-        for col in range(5):
-            x = start_x + col * spacing_x
-            y = start_y + row * spacing_y
-
-            rect = pg.Rect(
-                x,
-                y,
-                button_width,
-                button_height
-            )
-
-            level_rects.append(rect)
-    return level_rects
-
-def draw_speaker(screen, speaker_on, speaker_off, speaker_rect, is_music_on):
-    if is_music_on:
-        screen.blit(speaker_on, speaker_rect)
-    else:
-        screen.blit(speaker_off, speaker_rect)
-
-print("functions done")
 
 # async is needed for webapp
 async def main():
-
-    SIZE: tuple             = (1280,720) #The display size of the screen. Currently cannot be changed.
-    WIDTH:int               = SIZE[0]
-    HEIGHT:int              = SIZE[1]
-    game_state: str         = "home" #game states are "home", "htp", "playing", "won"
-    lilypad_count: int      = 4 # Amount of lilypad at the starting level
-    lilypad_width: int      = set_lilypad_width(lilypad_count, WIDTH)
-    lilypad_height: int     = set_lilypad_height()
-    frog_width: int         = set_frog_width()
-    arrow_index: int        = 2 # position of the selector
-    board: [int]            = [1]*lilypad_count #Starting position of the frogs
-    board_history: [tuple]  = [tuple(board)] #This memories all the previous states of the game at that level to enable undoing with z
-    arrow_rect: pg.Rect     = pg.Rect(0, 0, 100, 100) #dummy variable, later used for selector
-    is_selected: bool       = False #Has the player selected anything. Start of as False
-    indicator_scalar: float = 1.4 #F stands for factor, which is the factor by which the indicator width and height are multiplied by the width and height of the lilypad
-    clicked: bool           = False #Is the mouse clicked. Used to prevent multiple clicks from being registered when the mouse is held down.
-    level_number: int       = 1 #The current level the player is on. Starts at 1.
-    is_music_on: bool       = True
+    # Initialize state here because assignments below make these variables local.
+    level_number = config.level_number
+    game_state = config.game_state
+    board = list(config.board)
+    board_history = list(config.board_history)
+    arrow_index = config.arrow_index
+    is_selected = config.is_selected
+    clicked = config.clicked
 
     in_browser = sys.platform == "emscripten"
     if MUSIC:
@@ -159,7 +49,7 @@ async def main():
 
     def toggle_music():
 
-        nonlocal is_music_on
+        global is_music_on
         nonlocal main_channel
 
         is_music_on = not is_music_on
@@ -172,8 +62,8 @@ async def main():
 
     def start_level(level_number:int, starting_board:tuple) ->None:
 
-        nonlocal lilypad_count
-        nonlocal lilypad_width
+        global lily_count
+        global lily_width
         nonlocal lilypad_rect
         nonlocal lilypad
         nonlocal indicator
@@ -186,31 +76,31 @@ async def main():
         nonlocal lilypad_rects
 
 
-        lilypad_count = len(starting_board)
+        lily_count = len(starting_board)
 
         board_history = [starting_board]
         board = list(starting_board)
         
 
-        arrow_index = lilypad_count // 2
+        arrow_index = lily_count // 2
         is_selected = False
         game_state = "playing"
 
-        lilypad_width = set_lilypad_width(lilypad_count, WIDTH)
-        lilypad_height = set_lilypad_height()
-        lilypad_rect = pg.Rect(0,0,lilypad_width, lilypad_height)
+        lily_width = set_lily_width(lily_count, WIDTH)
+        lilypad_height = set_lily_height()
+        lilypad_rect = pg.Rect(0,0,lily_width, lilypad_height)
         # Reuse graphics prepared before music playback; no resizing here.
-        lilypad, indicator, lilypad_rects = level_graphics[lilypad_count]
+        lilypad, indicator, lilypad_rects = level_graphics[lily_count]
         lilypad_rect = lilypad.get_rect()
         indicator_rect = indicator.get_rect()
 
-    level_rects = get_level_rects()
+    level_rects = get_level_rectangles()
     level_to_home_button_rect = pg.Rect(1045, 605, 206, 74)
 
     #PART 2: load images
     screen_rect = pg.Rect(0,0,WIDTH, HEIGHT)
 
-    pond_original = pg.image.load("pond.png").convert_alpha()
+    pond_original = pg.image.load("assets/images/pond.png").convert_alpha()
     pond = pg.transform.scale(pond_original, (WIDTH, HEIGHT))
     pond_rect = pond.get_rect()
 
@@ -219,45 +109,45 @@ async def main():
     # homescreen_rect = homescreen.get_rect()
 
 
-    homescreen_original = pg.image.load("ChatGPT Image Sep 22, 2026, 12_41_36 PM.png").convert_alpha()
+    homescreen_original = pg.image.load("assets/images/Homescreen.png").convert_alpha()
     homescreen = pg.transform.scale(homescreen_original, (WIDTH, HEIGHT))
     homescreen_rect = homescreen.get_rect()
 
 
 
-    levelscreen_original = pg.image.load("level_screen.png").convert_alpha()
+    levelscreen_original = pg.image.load("assets/images/level_screen.png").convert_alpha()
     levelscreen = pg.transform.scale(levelscreen_original, (WIDTH, HEIGHT))
     levelscreen_rect = levelscreen.get_rect()
 
-    title_original = pg.image.load("name_of_game.png").convert_alpha()
+    title_original = pg.image.load("assets/images/name_of_game.png").convert_alpha()
     title = pg.transform.scale(title_original, (250,200))
     title_rect = title.get_rect()
 
-    frog_original = pg.image.load("frog.png").convert_alpha()
+    frog_original = pg.image.load("assets/images/frog.png").convert_alpha()
     frog = pg.transform.scale(frog_original, (frog_width,frog_width))
     frog_rect = frog.get_rect()
 
-    Lilypad_original = pg.image.load("lilypad.png").convert_alpha()
-    lilypad = pg.transform.scale(Lilypad_original, (lilypad_width, lilypad_height))
+    Lilypad_original = pg.image.load("assets/images/lilypad.png").convert_alpha()
+    lilypad = pg.transform.scale(Lilypad_original, (lily_width, lily_height))
     lilypad_rect = lilypad.get_rect()
 
-    indicator_original = pg.image.load("landing_indicator2.png").convert_alpha()
+    indicator_original = pg.image.load("assets/images/landing_indicator2.png").convert_alpha()
     visible_rect = indicator_original.get_bounding_rect()
     indicator_original = indicator_original.subsurface(visible_rect).copy()
-    indicator = pg.transform.scale(indicator_original, (int(lilypad_width *indicator_scalar), int(lilypad_height*indicator_scalar)))
+    indicator = pg.transform.scale(indicator_original, (int(lily_width *indicator_scalar), int(lily_height*indicator_scalar)))
     indicator_rect = indicator.get_rect()
 
-    arrow_original = pg.image.load("arrow.png").convert_alpha()
+    arrow_original = pg.image.load("assets/images/arrow.png").convert_alpha()
     arrow = pg.transform.scale(arrow_original, (100, 100))
     arrow_loc = arrow.get_rect()
-    arrow_loc.center = 0.5*WIDTH/lilypad_count, HEIGHT*0.2
+    arrow_loc.center = 0.5*WIDTH/lily_count, HEIGHT*0.2
 
-    wooden_sign_original = pg.image.load("wooden_sign.png").convert_alpha()
+    wooden_sign_original = pg.image.load("assets/images/wooden_sign.png").convert_alpha()
     wooden_sign = pg.transform.scale(wooden_sign_original, (1000, 600))
     wooden_sign_rect = wooden_sign.get_rect()
     wooden_sign_rect.midtop = (640, -100)
 
-    menu_button_original = pg.image.load("menu_button.png").convert_alpha()
+    menu_button_original = pg.image.load("assets/images/menu_button.png").convert_alpha()
     menu_button = pg.transform.scale(menu_button_original, (250,126))
     menu_button_rect = menu_button.get_rect()
     menu_button_rect.topright = (1270,0)
@@ -267,9 +157,9 @@ async def main():
     htp_button_rect = pg.Rect(472, 447, 343, 77)
     levels_button_rect = pg.Rect(472,554, 343, 77)
 
-    speaker_on_original = pg.image.load("speaker.png").convert_alpha()
+    speaker_on_original = pg.image.load("assets/images/speaker.png").convert_alpha()
     speaker_on = pg.transform.scale(speaker_on_original, (50,50))
-    speaker_off_original = pg.image.load("speaker-off.png").convert_alpha()
+    speaker_off_original = pg.image.load("assets/images/speaker-off.png").convert_alpha()
     speaker_off = pg.transform.scale(speaker_off_original, (50,50))
     speaker_rect = speaker_on.get_rect()
     speaker_rect.topleft = (50,50)
@@ -282,12 +172,12 @@ async def main():
 
     # Prepare every board size before audio starts.
     level_graphics = {}
-    for count in sorted({lilypad_count} | {len(board) for board in LEVELS.values()}):
-        pad_width = set_lilypad_width(count, WIDTH)
-        pad = pg.transform.scale(Lilypad_original, (pad_width, lilypad_height))
+    for count in sorted({lily_count} | {len(board) for board in LEVELS.values()}):
+        pad_width = set_lily_width(count, WIDTH)
+        pad = pg.transform.scale(Lilypad_original, (pad_width, lily_height))
         ripple = pg.transform.scale(
             indicator_original,
-            (int(pad_width * indicator_scalar), int(lilypad_height * indicator_scalar))
+            (int(pad_width * indicator_scalar), int(lily_height * indicator_scalar))
         )
         rects = []
         for i in range(count):
@@ -296,7 +186,7 @@ async def main():
             rects.append(rect)
         level_graphics[count] = (pad, ripple, rects)
         await asyncio.sleep(0)
-    lilypad, indicator, lilypad_rects = level_graphics[lilypad_count]
+    lilypad, indicator, lilypad_rects = level_graphics[lily_count]
     lilypad_rect = lilypad.get_rect()
     indicator_rect = indicator.get_rect()
 
@@ -317,21 +207,21 @@ async def main():
     if MUSIC:
         # Start music only after image loading, resizing and tutorial setup finish.
         if not in_browser:
-            mixer.music.load("02_Lily_Pad_Hop.ogg")
+            mixer.music.load("assets/music/02_Lily_Pad_Hop.ogg")
             mixer.music.set_volume(0.1)
         screen.blit(homescreen, homescreen_rect)
         pg.display.update()
         await asyncio.sleep(0)
         if in_browser:
             from browser_support import start_music, stop_music
-            start_music("02_Lily_Pad_Hop.ogg")
+            start_music("assets/music/02_Lily_Pad_Hop.ogg")
             if not is_music_on:
                 stop_music()
         elif is_music_on:
             mixer.music.play(-1, fade_ms=1000)
 
         main_channel = mixer.Channel(0)
-        jump_sound = mixer.Sound("Jumping_Frogs_Sound_Effects/jump_01.ogg")
+        jump_sound = mixer.Sound("assets/sounds/jump_01.ogg")
         jump_sound.set_volume(0.1)
 
     #PART 3: Main loop
@@ -424,9 +314,9 @@ async def main():
                     if event.key in [pg.K_a, pg.K_LEFT] and is_selected == False:
                         if arrow_index != 0:
                             arrow_index = arrow_index -1
-                            arrow_rect.move_ip(-(WIDTH/lilypad_count), 0)
+                            arrow_rect.move_ip(-(WIDTH/lily_count), 0)
                     elif event.key in [pg.K_d, pg.K_RIGHT] and is_selected == False:
-                        if arrow_index != lilypad_count -1:
+                        if arrow_index != lily_count -1:
                             arrow_index = arrow_index +1
                     elif event.key in [pg.K_s, pg.K_DOWN] and board[arrow_index]!=0:
                         is_selected = True
@@ -457,23 +347,23 @@ async def main():
                             
                     #r is restart
                     elif event.key in [pg.K_r]:
-                        board = [1]*lilypad_count
+                        board = [1]*lily_count
                         board_history = [tuple(board)]
                         is_selected = False
-                        arrow_index = math.ceil(lilypad_count/2) -1
+                        arrow_index = math.ceil(lily_count/2) -1
 
                     #z is undo
                     elif event.key in [pg.K_z] and len(board_history) >1:
                         board_history.pop()
                         board = list(board_history[-1])
                         is_selected = False
-                        arrow_index = math.ceil(lilypad_count/2) -1
+                        arrow_index = math.ceil(lily_count/2) -1
 
                     #m returns to menu
                     elif event.key in [pg.K_m]:
                         game_state = "home"
                         is_selected = False
-                        arrow_index = math.ceil(lilypad_count/2) -1
+                        arrow_index = math.ceil(lily_count/2) -1
                         
         #Updating part of the loop
         if not running:
@@ -551,10 +441,10 @@ async def main():
                 indicator_left = get_landing_index(arrow_index, board[arrow_index], "left")
                 indicator_right = get_landing_index(arrow_index, board[arrow_index], "right")
                 if is_valid_landing(indicator_left, board):
-                    indicator_rect.center = ((indicator_left + 0.5) * WIDTH//lilypad_count, int(0.8*HEIGHT))
+                    indicator_rect.center = ((indicator_left + 0.5) * WIDTH//lily_count, int(0.8*HEIGHT))
                     screen.blit(indicator, indicator_rect)
                 if is_valid_landing(indicator_right, board):
-                    indicator_rect.center = ((indicator_right + 0.5)*WIDTH//lilypad_count, int(0.8*HEIGHT))
+                    indicator_rect.center = ((indicator_right + 0.5)*WIDTH//lily_count, int(0.8*HEIGHT))
                     screen.blit(indicator,indicator_rect)
 
             # Reuse the rectangles prepared for this board size.
@@ -572,16 +462,16 @@ async def main():
                     )
 
             #Draw arrow above
-            draw_arrow(screen, WIDTH, HEIGHT, arrow, arrow_index, lilypad_count, is_selected)
+            draw_arrow(screen, WIDTH, HEIGHT, arrow, arrow_index, lily_count, is_selected)
 
             #Draw the frogs
-            if lilypad_count <= 10:
+            if lily_count <= 10:
                 frog_stack_spacing = int(0.5*frog_width)
             else:
                 frog_stack_spacing = int(0.42*frog_width)
-            for i in range(0, lilypad_count):
+            for i in range(0, lily_count):
                 for ii in range(board[i]-1, -1, -1):
-                    frog_rect.midbottom = ((i + 0.5)*WIDTH/lilypad_count, 0.8*HEIGHT-(frog_stack_spacing*ii))
+                    frog_rect.midbottom = ((i + 0.5)*WIDTH/lily_count, 0.8*HEIGHT-(frog_stack_spacing*ii))
                     screen.blit(frog, frog_rect)
 
             if player_has_won(board) and game_state == "playing":

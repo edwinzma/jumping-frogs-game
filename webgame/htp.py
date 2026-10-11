@@ -3,11 +3,11 @@ import pygame as pg
 class HowToPlay:
     """Three tutorial pages, drawn with text and the game's existing sprites."""
 
-    def __init__(self, pond, frog, lilypad):
+    def __init__(self, pond, frog, lily):
         self.pond = pond
         # Scale once, rather than resizing images on every frame.
         self.frog = pg.transform.smoothscale(frog, (76, 76))
-        self.lilypad = pg.transform.smoothscale(lilypad, (132, 46))
+        self.lily = pg.transform.smoothscale(lily, (132, 46))
         self.title_font = pg.font.Font(None, 56)
         self.body_font = pg.font.Font(None, 34)
         self.small_font = pg.font.Font(None, 27)
@@ -77,7 +77,7 @@ class HowToPlay:
             if index in targets:
                 pg.draw.ellipse(screen, (39, 164, 219), (x-77, y-29, 154, 58), 4)
                 pg.draw.ellipse(screen, (128, 216, 242), (x-85, y-35, 170, 70), 2)
-            screen.blit(self.lilypad, self.lilypad.get_rect(center=(x, y)))
+            screen.blit(self.lily, self.lily.get_rect(center=(x, y)))
             for height in range(count-1, -1, -1):
                 rect = self.frog.get_rect(midbottom=(x, y-5-height*30))
                 screen.blit(self.frog, rect)
