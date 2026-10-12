@@ -1,7 +1,13 @@
+from pathlib import Path
+
 import pygame as pg
 
 from utils.helpers import set_frog_width
 from utils.helpers import set_lily_height, set_lily_width
+
+
+# Resolve all game files relative to the webgame folder.
+BASE_PATH = Path(__file__).resolve().parent
 
 
 #TODO fix music when playing in web game, because it does not work at the moment.
@@ -20,10 +26,11 @@ board: list[int]            = [1]*lily_count #Starting position of the frogs
 board_history: list[tuple]  = [tuple(board)] #This memories all the previous states of the game at that level to enable undoing with z
 arrow_rect: pg.Rect         = pg.Rect(0, 0, 100, 100) #dummy variable, later used for selector
 is_selected: bool           = False #Has the player selected anything. Start of as False
-indicator_scalar: float     = 1.4 #F stands for factor, which is the factor by which the indicator width and height are multiplied by the width and height of the lilypad
+indicator_scalar: float     = 1.4 #F stands for factor, which is the factor by which the indicator width and height are multiplied by the width and height of the lily
 clicked: bool               = False #Is the mouse clicked. Used to prevent multiple clicks from being registered when the mouse is held down.
 level_number: int           = 1 #The current level the player is on. Starts at 1.
 is_music_on: bool           = True
+main_channel                = None
 
 LEVELS = {
     1:  (1,1,1,1),

@@ -54,8 +54,7 @@ class HowToPlay:
                 return self.advance()
         return None
 
-    def text(self, screen, message, center, small=False, title=False,
-             color=(31, 65, 43)):
+    def text(self, screen, message, center, small=False, title=False, color=(31, 65, 43)):
         font = self.title_font if title else self.small_font if small else self.body_font
         key = (message, small, title, color)
         if key not in self._text_cache:
@@ -127,16 +126,13 @@ class HowToPlay:
             selected = [2, 3, 1, None][self.example_step]
             targets = [(1, 3), (0,), (0,), ()][self.example_step]
             self.text(screen, captions[self.example_step], (640, 178))
-            self.board(screen, states[self.example_step], [295, 525, 755, 985],
-                       402, selected=selected, targets=targets)
+            self.board(screen, states[self.example_step], [295, 525, 755, 985], 402, selected=selected, targets=targets)
             self.text(screen, "Blue ripples show the possible landing pads.", (640, 481), small=True)
-            self.text(screen, "Click Next move to see what happens." if self.example_step < 3
-                      else "Ready to try it in the game?", (640, 516))
+            self.text(screen, "Click Next move to see what happens." if self.example_step < 3 else "Ready to try it in the game?", (640, 516))
             self.text(screen, "In the game: Z = undo    R = restart    M = main menu", (640, 560), small=True)
 
         self.button(screen, self.menu_rect, "Main menu")
         self.button(screen, self.back_rect, "Back", self.page > 0)
         label = "Next page" if self.page < 2 else "Next move" if self.example_step < 3 else "Done"
         self.button(screen, self.next_rect, label)
-        self.text(screen, "Left / Right: browse   |   Esc: menu", (543, 651), small=True,
-                  color=(255, 255, 255))
+        self.text(screen, "Left / Right: browse   |   Esc: menu", (543, 651), small=True, color=(255, 255, 255))

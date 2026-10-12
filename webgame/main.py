@@ -9,13 +9,37 @@ import asyncio
 import pygame as pg
 from pygame import mixer
 
-from config import SIZE, WIDTH, HEIGHT, lily_count, lily_width, lily_height, frog_width, arrow_rect, indicator_scalar, is_music_on, LEVELS, MUSIC
-from htp import HowToPlay
-from utils.helpers import draw_speaker, player_has_won, get_landing_index, is_valid_landing, draw_arrow, set_lily_width, set_lily_height, get_level_rectangles
+from config import BASE_PATH, SIZE, WIDTH, HEIGHT, lily_count, lily_width, lily_height, frog_width, arrow_rect, indicator_scalar, is_music_on, LEVELS, MUSIC
+
+pg.init()  # Initialize pygame before importing modules that use it.
+in_browser = sys.platform == "emscripten"
+if MUSIC:
+    if in_browser:
+        print("initializing pygame for browser...")
+        #pg.init() would also open SDL audio, even though music uses the browser.
+        pg.display.init()
+        pg.font.init()
+    else:
+        mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=4096)
+        pg.init()
+else:
+    pg.init()
+
+screen = pg.display.set_mode(SIZE)
+pg.display.set_caption("Jumping Frogs")
+clock = pg.time.Clock()
+my_font = pg.font.SysFont("Comic Sans MS", 30)
+
+
+from scenes.htp import HowToPlay
+from image_loading import *
+from utils.helpers import draw_speaker, player_has_won, get_landing_index, is_valid_landing, draw_arrow, set_lily_width, set_lily_height, get_level_rectangles, toggle_music, start_level
+from scenes.menu import play_button_rect, htp_button_rect, levels_button_rect, handle_menu_input, draw_menu
 
 
 # async is needed for webapp
 async def main():
+    global lily_count, lily_width, is_music_on
     # Initialize state here because assignments below make these variables local.
     level_number = config.level_number
     game_state = config.game_state
@@ -24,75 +48,13 @@ async def main():
     arrow_index = config.arrow_index
     is_selected = config.is_selected
     clicked = config.clicked
+    main_channel = config.main_channel
 
-    in_browser = sys.platform == "emscripten"
-    if MUSIC:
-        if in_browser:
-            print("initializing pygame for browser...")
-            #pg.init() would also open SDL audio, even though music uses the browser.
-            pg.display.init()
-            pg.font.init()
-        else:
-            mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=4096)
-            pg.init()
-    else:
-        pg.init()
 
-    screen = pg.display.set_mode(SIZE)
-    pg.display.set_caption("Jumping Frogs")
-    clock = pg.time.Clock()
-    my_font = pg.font.SysFont("Comic Sans MS", 30)
 
     
     #apply changes
     pg.display.update()
-
-    def toggle_music():
-
-        global is_music_on
-        nonlocal main_channel
-
-        is_music_on = not is_music_on
-        if is_music_on:
-            mixer.music.unpause()
-            main_channel.set_volume(0.1)
-        else:
-            mixer.music.pause()
-            main_channel.set_volume(0)
-
-    def start_level(level_number:int, starting_board:tuple) ->None:
-
-        global lily_count
-        global lily_width
-        nonlocal lilypad_rect
-        nonlocal lilypad
-        nonlocal indicator
-        nonlocal indicator_rect
-        nonlocal board
-        nonlocal board_history
-        nonlocal arrow_index
-        nonlocal is_selected
-        nonlocal game_state
-        nonlocal lilypad_rects
-
-
-        lily_count = len(starting_board)
-
-        board_history = [starting_board]
-        board = list(starting_board)
-        
-
-        arrow_index = lily_count // 2
-        is_selected = False
-        game_state = "playing"
-
-        lily_width = set_lily_width(lily_count, WIDTH)
-        lilypad_height = set_lily_height()
-        lilypad_rect = pg.Rect(0,0,lily_width, lilypad_height)
-        # Reuse graphics prepared before music playback; no resizing here.
-        lilypad, indicator, lilypad_rects = level_graphics[lily_count]
-        lilypad_rect = lilypad.get_rect()
-        indicator_rect = indicator.get_rect()
 
     level_rects = get_level_rectangles()
     level_to_home_button_rect = pg.Rect(1045, 605, 206, 74)
@@ -100,81 +62,14 @@ async def main():
     #PART 2: load images
     screen_rect = pg.Rect(0,0,WIDTH, HEIGHT)
 
-    pond_original = pg.image.load("assets/images/pond.png").convert_alpha()
-    pond = pg.transform.scale(pond_original, (WIDTH, HEIGHT))
-    pond_rect = pond.get_rect()
-
-    # homescreen_original = pg.image.load("Homescreen.png").convert_alpha()
-    # homescreen = pg.transform.scale(homescreen_original, (WIDTH, HEIGHT))
-    # homescreen_rect = homescreen.get_rect()
-
-
-    homescreen_original = pg.image.load("assets/images/Homescreen.png").convert_alpha()
-    homescreen = pg.transform.scale(homescreen_original, (WIDTH, HEIGHT))
-    homescreen_rect = homescreen.get_rect()
-
-
-
-    levelscreen_original = pg.image.load("assets/images/level_screen.png").convert_alpha()
-    levelscreen = pg.transform.scale(levelscreen_original, (WIDTH, HEIGHT))
-    levelscreen_rect = levelscreen.get_rect()
-
-    title_original = pg.image.load("assets/images/name_of_game.png").convert_alpha()
-    title = pg.transform.scale(title_original, (250,200))
-    title_rect = title.get_rect()
-
-    frog_original = pg.image.load("assets/images/frog.png").convert_alpha()
-    frog = pg.transform.scale(frog_original, (frog_width,frog_width))
-    frog_rect = frog.get_rect()
-
-    Lilypad_original = pg.image.load("assets/images/lilypad.png").convert_alpha()
-    lilypad = pg.transform.scale(Lilypad_original, (lily_width, lily_height))
-    lilypad_rect = lilypad.get_rect()
-
-    indicator_original = pg.image.load("assets/images/landing_indicator2.png").convert_alpha()
-    visible_rect = indicator_original.get_bounding_rect()
-    indicator_original = indicator_original.subsurface(visible_rect).copy()
-    indicator = pg.transform.scale(indicator_original, (int(lily_width *indicator_scalar), int(lily_height*indicator_scalar)))
-    indicator_rect = indicator.get_rect()
-
-    arrow_original = pg.image.load("assets/images/arrow.png").convert_alpha()
-    arrow = pg.transform.scale(arrow_original, (100, 100))
-    arrow_loc = arrow.get_rect()
-    arrow_loc.center = 0.5*WIDTH/lily_count, HEIGHT*0.2
-
-    wooden_sign_original = pg.image.load("assets/images/wooden_sign.png").convert_alpha()
-    wooden_sign = pg.transform.scale(wooden_sign_original, (1000, 600))
-    wooden_sign_rect = wooden_sign.get_rect()
-    wooden_sign_rect.midtop = (640, -100)
-
-    menu_button_original = pg.image.load("assets/images/menu_button.png").convert_alpha()
-    menu_button = pg.transform.scale(menu_button_original, (250,126))
-    menu_button_rect = menu_button.get_rect()
-    menu_button_rect.topright = (1270,0)
-
-    #DRAW rectangles over play-button, How-to-Play button on the home screen.
-    play_button_rect = pg.Rect(472, 332, 343, 90)
-    htp_button_rect = pg.Rect(472, 447, 343, 77)
-    levels_button_rect = pg.Rect(472,554, 343, 77)
-
-    speaker_on_original = pg.image.load("assets/images/speaker.png").convert_alpha()
-    speaker_on = pg.transform.scale(speaker_on_original, (50,50))
-    speaker_off_original = pg.image.load("assets/images/speaker-off.png").convert_alpha()
-    speaker_off = pg.transform.scale(speaker_off_original, (50,50))
-    speaker_rect = speaker_on.get_rect()
-    speaker_rect.topleft = (50,50)
-
-
-
-
     # Tutorial owns its page number and example; it never changes the real board.
-    tutorial = HowToPlay(pond, frog_original, Lilypad_original)
+    tutorial = HowToPlay(pond, frog_original, lily_original)
 
     # Prepare every board size before audio starts.
     level_graphics = {}
     for count in sorted({lily_count} | {len(board) for board in LEVELS.values()}):
         pad_width = set_lily_width(count, WIDTH)
-        pad = pg.transform.scale(Lilypad_original, (pad_width, lily_height))
+        pad = pg.transform.scale(lily_original, (pad_width, lily_height))
         ripple = pg.transform.scale(
             indicator_original,
             (int(pad_width * indicator_scalar), int(lily_height * indicator_scalar))
@@ -186,8 +81,8 @@ async def main():
             rects.append(rect)
         level_graphics[count] = (pad, ripple, rects)
         await asyncio.sleep(0)
-    lilypad, indicator, lilypad_rects = level_graphics[lily_count]
-    lilypad_rect = lilypad.get_rect()
+    lily, indicator, lily_rects = level_graphics[lily_count]
+    lily_rect = lily.get_rect()
     indicator_rect = indicator.get_rect()
 
     # Text rendering is done once, not on each frame of the win screen.
@@ -207,21 +102,21 @@ async def main():
     if MUSIC:
         # Start music only after image loading, resizing and tutorial setup finish.
         if not in_browser:
-            mixer.music.load("assets/music/02_Lily_Pad_Hop.ogg")
+            mixer.music.load(str(BASE_PATH / "assets/music/02_Lily_Pad_Hop.ogg"))
             mixer.music.set_volume(0.1)
         screen.blit(homescreen, homescreen_rect)
         pg.display.update()
         await asyncio.sleep(0)
         if in_browser:
             from browser_support import start_music, stop_music
-            start_music("assets/music/02_Lily_Pad_Hop.ogg")
+            start_music(str(BASE_PATH / "assets/music/02_Lily_Pad_Hop.ogg"))
             if not is_music_on:
                 stop_music()
         elif is_music_on:
             mixer.music.play(-1, fade_ms=1000)
 
         main_channel = mixer.Channel(0)
-        jump_sound = mixer.Sound("assets/sounds/jump_01.ogg")
+        jump_sound = mixer.Sound(str(BASE_PATH / "assets/sounds/jump_01.ogg"))
         jump_sound.set_volume(0.1)
 
     #PART 3: Main loop
@@ -240,12 +135,15 @@ async def main():
                 running = False
                 break
 
-            if game_state == "home":
-                if event.type == pg.MOUSEBUTTONDOWN:
-                    if event.button == 1 and (clicked == False) and speaker_rect.collidepoint(event.pos):
-                        toggle_music()
+            elif game_state == "home":
+                if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+                    if speaker_rect.collidepoint(event.pos):
+                        is_music_on = toggle_music(is_music_on, main_channel)
+                game_state = handle_menu_input(event)
+                if game_state == "htp":
+                    tutorial.reset()
 
-            if game_state == "htp":
+            elif game_state == "htp":
                 next_state = tutorial.handle_event(event)
                 if next_state is not None:
                     game_state = next_state
@@ -258,7 +156,7 @@ async def main():
                         #Toggle music
                         if speaker_rect.collidepoint(event.pos) and clicked == False:
                             if MUSIC:
-                                toggle_music()
+                                is_music_on = toggle_music(is_music_on, main_channel)
 
                         #Select levels
                         for index, rect in enumerate(level_rects):
@@ -267,7 +165,11 @@ async def main():
 
                                 level_number = index + 1
 
-                                start_level(level_number, LEVELS[level_number])
+                                (lily_count, lily_width, board, board_history, arrow_index,
+                                 is_selected, game_state, lily, indicator, lily_rects,
+                                 lily_rect, indicator_rect) = start_level(
+                                    LEVELS[level_number], level_graphics, WIDTH
+                                )
                         #Home button
                         if level_to_home_button_rect.collidepoint(pos):
                             game_state = "home"
@@ -276,7 +178,11 @@ async def main():
                 if event.type == pg.KEYDOWN or (event.type == pg.MOUSEBUTTONDOWN and event.button == 1):
                     if level_number + 1 in LEVELS:
                         level_number += 1
-                        start_level(level_number, LEVELS[level_number])
+                        (lily_count, lily_width, board, board_history, arrow_index,
+                         is_selected, game_state, lily, indicator, lily_rects,
+                         lily_rect, indicator_rect) = start_level(
+                            LEVELS[level_number], level_graphics, WIDTH
+                        )
                         game_state = "playing"
                     else:
                         game_state = "complete"
@@ -288,24 +194,23 @@ async def main():
             elif game_state == "playing":
 
                 #All the mouse controls for the game are handled here.
-                if event.type == pg.MOUSEBUTTONDOWN:
-                    if event.button == 1:  # Left mouse button
-                        for i, rect in enumerate(lilypad_rects):
-                            if rect.collidepoint(event.pos):
-                                if is_selected == False and board[i] != 0:
-                                    arrow_index = i
-                                    is_selected = True
-                                elif is_selected == True and i in [get_landing_index(arrow_index, board[arrow_index], "left"), get_landing_index(arrow_index, board[arrow_index], "right")] and is_valid_landing(i, board):
-                                    board[i] += board[arrow_index]
-                                    board[arrow_index] = 0
-                                    arrow_index = i
-                                    is_selected = False
-                                    board_history.append(tuple(board))
-                                    if MUSIC:
-                                        main_channel.play(jump_sound)
+                if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+                    for i, rect in enumerate(lily_rects):
+                        if rect.collidepoint(event.pos):
+                            if is_selected == False and board[i] != 0:
+                                arrow_index = i
+                                is_selected = True
+                            elif is_selected == True and i in [get_landing_index(arrow_index, board[arrow_index], "left"), get_landing_index(arrow_index, board[arrow_index], "right")] and is_valid_landing(i, board):
+                                board[i] += board[arrow_index]
+                                board[arrow_index] = 0
+                                arrow_index = i
+                                is_selected = False
+                                board_history.append(tuple(board))
+                                if MUSIC:
+                                    main_channel.play(jump_sound)
 
-                        if speaker_rect.collidepoint(event.pos) and clicked == False:
-                            toggle_music()
+                    if speaker_rect.collidepoint(event.pos) and clicked == False:
+                        is_music_on = toggle_music(is_music_on, main_channel)
 
 
 
@@ -371,27 +276,7 @@ async def main():
 
         #Drawing part of the loop
         if game_state == "home":
-            
-            #check mouseover and clicked conditions
-            if play_button_rect.collidepoint(pos):
-                if pg.mouse.get_pressed()[0] == 1 and clicked == False:
-                    clicked = True
-                    game_state = "playing"
-            elif htp_button_rect.collidepoint(pos):
-                if pg.mouse.get_pressed()[0] == 1 and clicked == False:
-                    clicked = True
-                    tutorial.reset()
-                    game_state = "htp"
-            elif levels_button_rect.collidepoint(pos):
-                if pg.mouse.get_pressed()[0] == 1 and clicked == False:
-                    clicked = True
-                    game_state = "levels"
-
-            if pg.mouse.get_pressed()[0] == 0:
-                clicked = False
-
-            screen.blit(homescreen, homescreen_rect)
-            draw_speaker(screen, speaker_on, speaker_off, speaker_rect, is_music_on)
+            draw_menu(screen, is_music_on)
 
         elif game_state == "complete":
             screen.fill("light blue")
@@ -448,11 +333,11 @@ async def main():
                     screen.blit(indicator,indicator_rect)
 
             # Reuse the rectangles prepared for this board size.
-            for lilypad_rect in lilypad_rects:
-                screen.blit(lilypad, lilypad_rect)
+            for lily_rect in lily_rects:
+                screen.blit(lily, lily_rect)
 
-            #Draw an ellipse around the lilypad the mouse is hovering over.
-            for rect in lilypad_rects:
+            #Draw an ellipse around the lily the mouse is hovering over.
+            for rect in lily_rects:
                 if rect.collidepoint(pos):
                     pg.draw.ellipse(
                         screen,

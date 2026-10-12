@@ -5,5 +5,7 @@
         "blit",
         "smoothscale",
         "collidepoint",
+        "webgame",
+        "lilypad"
     ]
 }

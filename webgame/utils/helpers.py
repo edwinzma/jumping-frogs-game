@@ -1,5 +1,6 @@
 #PART 1: Define functions
 import pygame as pg
+from pygame import mixer
 
 from utils.button import Button
 
@@ -107,3 +108,39 @@ def draw_speaker(screen, speaker_on, speaker_off, speaker_rect, is_music_on):
         screen.blit(speaker_on, speaker_rect)
     else:
         screen.blit(speaker_off, speaker_rect)
+
+
+def toggle_music(music_on: bool, main_channel) -> bool:
+    """Toggle the music state and return the updated value."""
+    music_on = not music_on
+    if music_on:
+        if mixer.get_init():
+            mixer.music.unpause()
+        if main_channel is not None:
+            main_channel.set_volume(0.1)
+    else:
+        if mixer.get_init():
+            mixer.music.pause()
+        if main_channel is not None:
+            main_channel.set_volume(0)
+    return music_on
+
+
+def start_level(starting_board: tuple, level_graphics: dict, width: int) -> tuple:
+    """Return reset gameplay state and the prepared graphics for a level."""
+    lily_count = len(starting_board)
+    board_history = [starting_board]
+    board = list(starting_board)
+    arrow_index = lily_count // 2
+    is_selected = False
+    game_state = "playing"
+    lily_width = set_lily_width(lily_count, width)
+    # Reuse graphics prepared before music playback; no resizing here.
+    lily, indicator, lily_rects = level_graphics[lily_count]
+    lily_rect = lily.get_rect()
+    indicator_rect = indicator.get_rect()
+    return (
+        lily_count, lily_width, board, board_history, arrow_index,
+        is_selected, game_state, lily, indicator, lily_rects,
+        lily_rect, indicator_rect,
+    )
