@@ -1,7 +1,6 @@
 import pygame as pg
 
 from image_loading import *
-from utils.helpers import draw_speaker
 
 
 
@@ -10,9 +9,8 @@ htp_button_rect = pg.Rect(472, 447, 343, 77)
 levels_button_rect = pg.Rect(472,554, 343, 77)
 
 
-def draw_menu(screen, is_music_on):
+def draw_menu(screen):
     screen.blit(homescreen, homescreen_rect)
-    draw_speaker(screen, speaker_on, speaker_off, speaker_rect, is_music_on)
 
 
 

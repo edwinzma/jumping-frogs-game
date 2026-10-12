@@ -10,8 +10,6 @@ from utils.helpers import set_lily_height, set_lily_width
 BASE_PATH = Path(__file__).resolve().parent
 
 
-#TODO fix music when playing in web game, because it does not work at the moment.
-MUSIC = False
 
 SIZE: tuple                 = (1280,720) #The display size of the screen. Currently cannot be changed.
 WIDTH:int                   = SIZE[0]
@@ -29,8 +27,6 @@ is_selected: bool           = False #Has the player selected anything. Start of 
 indicator_scalar: float     = 1.4 #F stands for factor, which is the factor by which the indicator width and height are multiplied by the width and height of the lily
 clicked: bool               = False #Is the mouse clicked. Used to prevent multiple clicks from being registered when the mouse is held down.
 level_number: int           = 1 #The current level the player is on. Starts at 1.
-is_music_on: bool           = True
-main_channel                = None
 
 LEVELS = {
     1:  (1,1,1,1),
@@ -54,3 +50,6 @@ LEVELS = {
     19: (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1),
     20: (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1)
 }
+
+
+completed_levels: set = set()

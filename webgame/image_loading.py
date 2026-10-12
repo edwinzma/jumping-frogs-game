@@ -17,7 +17,7 @@ pond_rect = pond.get_rect()
 # homescreen_rect = homescreen.get_rect()
 
 
-homescreen_original = pg.image.load(str(BASE_PATH / "assets/images/Homescreen.png")).convert_alpha()
+homescreen_original = pg.image.load(str(BASE_PATH / "assets/images/menu_screen.png")).convert_alpha()
 homescreen = pg.transform.scale(homescreen_original, (WIDTH, HEIGHT))
 homescreen_rect = homescreen.get_rect()
 
@@ -60,9 +60,11 @@ menu_button = pg.transform.scale(menu_button_original, (250,126))
 menu_button_rect = menu_button.get_rect()
 menu_button_rect.topright = (1270,0)
 
-speaker_on_original = pg.image.load(str(BASE_PATH / "assets/images/speaker.png")).convert_alpha()
-speaker_on = pg.transform.scale(speaker_on_original, (50,50))
-speaker_off_original = pg.image.load(str(BASE_PATH / "assets/images/speaker-off.png")).convert_alpha()
-speaker_off = pg.transform.scale(speaker_off_original, (50,50))
-speaker_rect = speaker_on.get_rect()
-speaker_rect.topleft = (50,50)
+undo_button_original = pg.image.load(str(BASE_PATH / "assets/images/clockwise-rotation.png")).convert_alpha()
+undo_button = pg.transform.scale(undo_button_original, (60,60))
+undo_button_rect = undo_button.get_rect()
+undo_button_rect.topleft = (int(WIDTH*0.05), int(HEIGHT*0.05))
+
+checkmark_original = pg.image.load(str(BASE_PATH / "assets/images/checkmark.png")).convert_alpha()
+checkmark = pg.transform.scale(checkmark_original, (50, 50))
+checkmark_rect = checkmark.get_rect()

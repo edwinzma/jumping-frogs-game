@@ -7,23 +7,12 @@ import config
 
 import asyncio
 import pygame as pg
-from pygame import mixer
 
-from config import BASE_PATH, SIZE, WIDTH, HEIGHT, lily_count, lily_width, lily_height, frog_width, arrow_rect, indicator_scalar, is_music_on, LEVELS, MUSIC
-
-pg.init()  # Initialize pygame before importing modules that use it.
+from config import *
+# Initialize only the display and fonts; the game has no audio.
+pg.display.init()
+pg.font.init()
 in_browser = sys.platform == "emscripten"
-if MUSIC:
-    if in_browser:
-        print("initializing pygame for browser...")
-        #pg.init() would also open SDL audio, even though music uses the browser.
-        pg.display.init()
-        pg.font.init()
-    else:
-        mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=4096)
-        pg.init()
-else:
-    pg.init()
 
 screen = pg.display.set_mode(SIZE)
 pg.display.set_caption("Jumping Frogs")
@@ -33,13 +22,13 @@ my_font = pg.font.SysFont("Comic Sans MS", 30)
 
 from scenes.htp import HowToPlay
 from image_loading import *
-from utils.helpers import draw_speaker, player_has_won, get_landing_index, is_valid_landing, draw_arrow, set_lily_width, set_lily_height, get_level_rectangles, toggle_music, start_level
-from scenes.menu import play_button_rect, htp_button_rect, levels_button_rect, handle_menu_input, draw_menu
+from utils.helpers import *
+from scenes.menu import *
 
 
 # async is needed for webapp
 async def main():
-    global lily_count, lily_width, is_music_on
+    global lily_count, lily_width
     # Initialize state here because assignments below make these variables local.
     level_number = config.level_number
     game_state = config.game_state
@@ -48,7 +37,6 @@ async def main():
     arrow_index = config.arrow_index
     is_selected = config.is_selected
     clicked = config.clicked
-    main_channel = config.main_channel
 
 
 
@@ -65,7 +53,7 @@ async def main():
     # Tutorial owns its page number and example; it never changes the real board.
     tutorial = HowToPlay(pond, frog_original, lily_original)
 
-    # Prepare every board size before audio starts.
+    # Prepare graphics for every board size.
     level_graphics = {}
     for count in sorted({lily_count} | {len(board) for board in LEVELS.values()}):
         pad_width = set_lily_width(count, WIDTH)
@@ -99,26 +87,6 @@ async def main():
     )
 
     
-    if MUSIC:
-        # Start music only after image loading, resizing and tutorial setup finish.
-        if not in_browser:
-            mixer.music.load(str(BASE_PATH / "assets/music/02_Lily_Pad_Hop.ogg"))
-            mixer.music.set_volume(0.1)
-        screen.blit(homescreen, homescreen_rect)
-        pg.display.update()
-        await asyncio.sleep(0)
-        if in_browser:
-            from browser_support import start_music, stop_music
-            start_music(str(BASE_PATH / "assets/music/02_Lily_Pad_Hop.ogg"))
-            if not is_music_on:
-                stop_music()
-        elif is_music_on:
-            mixer.music.play(-1, fade_ms=1000)
-
-        main_channel = mixer.Channel(0)
-        jump_sound = mixer.Sound(str(BASE_PATH / "assets/sounds/jump_01.ogg"))
-        jump_sound.set_volume(0.1)
-
     #PART 3: Main loop
     running = True
     while running:
@@ -135,10 +103,7 @@ async def main():
                 running = False
                 break
 
-            elif game_state == "home":
-                if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
-                    if speaker_rect.collidepoint(event.pos):
-                        is_music_on = toggle_music(is_music_on, main_channel)
+            if game_state == "home":
                 game_state = handle_menu_input(event)
                 if game_state == "htp":
                     tutorial.reset()
@@ -153,11 +118,6 @@ async def main():
             elif game_state == "levels": #Player is at the levels-screen
                 if event.type == pg.MOUSEBUTTONDOWN:
                     if event.button == 1:
-                        #Toggle music
-                        if speaker_rect.collidepoint(event.pos) and clicked == False:
-                            if MUSIC:
-                                is_music_on = toggle_music(is_music_on, main_channel)
-
                         #Select levels
                         for index, rect in enumerate(level_rects):
 
@@ -200,22 +160,33 @@ async def main():
                             if is_selected == False and board[i] != 0:
                                 arrow_index = i
                                 is_selected = True
+                            elif is_selected == True and arrow_index == i:
+                                is_selected = False
                             elif is_selected == True and i in [get_landing_index(arrow_index, board[arrow_index], "left"), get_landing_index(arrow_index, board[arrow_index], "right")] and is_valid_landing(i, board):
                                 board[i] += board[arrow_index]
                                 board[arrow_index] = 0
                                 arrow_index = i
                                 is_selected = False
                                 board_history.append(tuple(board))
-                                if MUSIC:
-                                    main_channel.play(jump_sound)
 
-                    if speaker_rect.collidepoint(event.pos) and clicked == False:
-                        is_music_on = toggle_music(is_music_on, main_channel)
+
+                    if undo_button_rect.collidepoint(event.pos) and len(board_history) >1:
+                        board_history.pop()
+                        board = list(board_history[-1])
+                        is_selected = False
+                        arrow_index = math.ceil(lily_count/2) -1
+
+                elif event.type == pg.MOUSEMOTION:
+                    for i, rect in enumerate(lily_rects):
+                        if rect.collidepoint(event.pos):
+                            if is_selected == False:
+                                arrow_index = i
+
 
 
 
                 #All the keyboard controls for the game are handled here.
-                if event.type == pg.KEYDOWN:
+                elif event.type == pg.KEYDOWN:
                     if event.key in [pg.K_a, pg.K_LEFT] and is_selected == False:
                         if arrow_index != 0:
                             arrow_index = arrow_index -1
@@ -236,8 +207,6 @@ async def main():
                             arrow_index = landing_index
                             is_selected = False
                             board_history.append(tuple(board))
-                            if MUSIC:
-                                main_channel.play(jump_sound)
 
                     elif event.key in [pg.K_d, pg.K_RIGHT] and is_selected == True:
                         landing_index = get_landing_index(arrow_index, board[arrow_index],"right")
@@ -247,8 +216,6 @@ async def main():
                             arrow_index = landing_index
                             is_selected = False
                             board_history.append(tuple(board))
-                            if MUSIC:
-                                main_channel.play(jump_sound)
                             
                     #r is restart
                     elif event.key in [pg.K_r]:
@@ -276,7 +243,7 @@ async def main():
 
         #Drawing part of the loop
         if game_state == "home":
-            draw_menu(screen, is_music_on)
+            draw_menu(screen)
 
         elif game_state == "complete":
             screen.fill("light blue")
@@ -287,14 +254,18 @@ async def main():
 
         elif game_state == "levels":
             screen.blit(levelscreen, levelscreen_rect)
-            draw_speaker(screen, speaker_on, speaker_off, speaker_rect, is_music_on)
 
             # for i in range(0,len(level_rects)):
             #     pg.draw.rect(screen, "red", level_rects[i], 3)
 
             # pg.draw.rect(screen, "red", level_to_home_button_rect, 3)
 
-            for rect in level_rects:
+            for index, rect in enumerate(level_rects):
+
+                if index + 1 in completed_levels:
+                    checkmark_rect.center = rect.center
+                    screen.blit(checkmark, checkmark_rect)
+
 
                 if rect.collidepoint(pos):
 
@@ -309,10 +280,12 @@ async def main():
 
             #Fill background
             screen.blit(pond, pond_rect)
-            draw_speaker(screen, speaker_on, speaker_off, speaker_rect, is_music_on)
 
             #Menu button
             screen.blit(menu_button, menu_button_rect)
+
+            #Undo button
+            screen.blit(undo_button, undo_button_rect)
 
             if menu_button_rect.collidepoint(pos):
                 if pg.mouse.get_pressed()[0] == 1 and clicked == False:
@@ -360,6 +333,7 @@ async def main():
                     screen.blit(frog, frog_rect)
 
             if player_has_won(board) and game_state == "playing":
+                completed_levels.add(level_number)
                 game_state = "won"
                 
         if game_state == "won":
@@ -382,22 +356,6 @@ async def main():
         # Every screen returns control to the browser once per frame.
         await asyncio.sleep(0)
 
-    # Graceful quit when the game receives QUIT. Closing a browser tab can
-    # terminate execution before this runs, so tab-close clicks aren't guaranteed.
-    if in_browser:
-        stop_music()
-    elif mixer.get_init():
-        volume = mixer.music.get_volume()
-        fade_started = pg.time.get_ticks()
-        while mixer.music.get_busy():
-            progress = min((pg.time.get_ticks() - fade_started) / 200, 1.0)
-            mixer.music.set_volume(volume * (1.0 - progress))
-            if progress >= 1.0:
-                break
-            pg.event.pump()
-            await asyncio.sleep(0.01)
-        mixer.music.stop()
-        mixer.stop()
     pg.quit()
 
 
