@@ -1,7 +1,7 @@
 #PART 1: Define functions
 import pygame as pg
 
-from utils.button import Button
+#from button import Button
 
 
 def player_has_won(board_state:list) -> bool:
@@ -27,8 +27,10 @@ def get_landing_index(arrow_index:int, frog_count:int, direction:str) -> int:
         return arrow_index + distance
 
 
-def is_valid_landing(landing_index:int, board:list = []) -> bool:
+def is_valid_landing(landing_index:int, board:list = [], crown_index:int = None) -> bool:
     """Returns True if the landing index is valid, False otherwise. A landing index is valid if it is within the bounds of the board and there is at least one frog on the lily pad."""
+    if landing_index == crown_index:
+        return False
     if landing_index >=0 and landing_index <len(board) and board[landing_index] > 0:
         return True
     else:
@@ -115,6 +117,7 @@ def start_level(starting_board: tuple, level_graphics: dict, width: int) -> tupl
     lily, indicator, lily_rects = level_graphics[lily_count]
     lily_rect = lily.get_rect()
     indicator_rect = indicator.get_rect()
+
     return (
         lily_count, lily_width, board, board_history, arrow_index,
         is_selected, game_state, lily, indicator, lily_rects,

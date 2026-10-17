@@ -68,3 +68,7 @@ undo_button_rect.topleft = (int(WIDTH*0.05), int(HEIGHT*0.05))
 checkmark_original = pg.image.load(str(BASE_PATH / "assets/images/checkmark.png")).convert_alpha()
 checkmark = pg.transform.scale(checkmark_original, (50, 50))
 checkmark_rect = checkmark.get_rect()
+
+crown_original = pg.image.load(str(BASE_PATH / "assets/images/crown.png")).convert_alpha()
+crown = pg.transform.scale(crown_original, (80, 80))
+crown_rect = crown.get_rect()

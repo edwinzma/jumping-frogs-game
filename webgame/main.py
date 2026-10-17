@@ -28,7 +28,8 @@ from scenes.menu import *
 
 # async is needed for webapp
 async def main():
-    global lily_count, lily_width
+    global lily_count, lily_width, crown_history
+    crown_index = config.crown_index
     # Initialize state here because assignments below make these variables local.
     level_number = config.level_number
     game_state = config.game_state
@@ -55,7 +56,7 @@ async def main():
 
     # Prepare graphics for every board size.
     level_graphics = {}
-    for count in sorted({lily_count} | {len(board) for board in LEVELS.values()}):
+    for count in sorted({lily_count} | {len(dictionary["board"]) for dictionary in LEVELS.values()}):
         pad_width = set_lily_width(count, WIDTH)
         pad = pg.transform.scale(lily_original, (pad_width, lily_height))
         ripple = pg.transform.scale(
@@ -128,8 +129,14 @@ async def main():
                                 (lily_count, lily_width, board, board_history, arrow_index,
                                  is_selected, game_state, lily, indicator, lily_rects,
                                  lily_rect, indicator_rect) = start_level(
-                                    LEVELS[level_number], level_graphics, WIDTH
+                                    LEVELS[level_number]["board"], level_graphics, WIDTH
                                 )
+
+                                crown_index = LEVELS[level_number].get("crown_index", None)
+                                if crown_index is not None:
+                                    crown_history = [crown_index]
+                                else:
+                                    crown_history = []
                         #Home button
                         if level_to_home_button_rect.collidepoint(pos):
                             game_state = "home"
@@ -141,8 +148,13 @@ async def main():
                         (lily_count, lily_width, board, board_history, arrow_index,
                          is_selected, game_state, lily, indicator, lily_rects,
                          lily_rect, indicator_rect) = start_level(
-                            LEVELS[level_number], level_graphics, WIDTH
+                            LEVELS[level_number]["board"], level_graphics, WIDTH
                         )
+                        crown_index = LEVELS[level_number].get("crown_index", None)
+                        if crown_index is not None:
+                            crown_history = [crown_index]
+                        else:
+                            crown_history = []
                         game_state = "playing"
                     else:
                         game_state = "complete"
@@ -162,19 +174,25 @@ async def main():
                                 is_selected = True
                             elif is_selected == True and arrow_index == i:
                                 is_selected = False
-                            elif is_selected == True and i in [get_landing_index(arrow_index, board[arrow_index], "left"), get_landing_index(arrow_index, board[arrow_index], "right")] and is_valid_landing(i, board):
+                            elif is_selected == True and i in [get_landing_index(arrow_index, board[arrow_index], "left"), get_landing_index(arrow_index, board[arrow_index], "right")] and is_valid_landing(i, board, crown_index):
                                 board[i] += board[arrow_index]
+                                if arrow_index == crown_index:
+                                    crown_index = i
                                 board[arrow_index] = 0
                                 arrow_index = i
                                 is_selected = False
                                 board_history.append(tuple(board))
+                                crown_history.append(crown_index)
 
-
+                                
                     if undo_button_rect.collidepoint(event.pos) and len(board_history) >1:
                         board_history.pop()
                         board = list(board_history[-1])
                         is_selected = False
                         arrow_index = math.ceil(lily_count/2) -1
+                        if crown_history:
+                            crown_history.pop()
+                            crown_index = crown_history[-1]
 
                 elif event.type == pg.MOUSEMOTION:
                     for i, rect in enumerate(lily_rects):
@@ -201,21 +219,27 @@ async def main():
 
                     elif event.key in [pg.K_a, pg.K_LEFT] and is_selected == True:
                         landing_index = get_landing_index(arrow_index, board[arrow_index],"left")
-                        if is_valid_landing(landing_index, board) == True:
+                        if is_valid_landing(landing_index, board, crown_index) == True:
                             board[landing_index] = board[landing_index] +board[arrow_index]
                             board[arrow_index] = 0
+                            if crown_index == arrow_index:
+                                crown_index = landing_index
                             arrow_index = landing_index
                             is_selected = False
                             board_history.append(tuple(board))
+                            crown_history.append(crown_index)
 
                     elif event.key in [pg.K_d, pg.K_RIGHT] and is_selected == True:
                         landing_index = get_landing_index(arrow_index, board[arrow_index],"right")
-                        if is_valid_landing(landing_index, board) == True:
+                        if is_valid_landing(landing_index, board, crown_index) == True:
                             board[landing_index] = board[landing_index] +board[arrow_index]
                             board[arrow_index] = 0
+                            if crown_index == arrow_index:
+                                crown_index = landing_index
                             arrow_index = landing_index
                             is_selected = False
                             board_history.append(tuple(board))
+                            crown_history.append(crown_index)
                             
                     #r is restart
                     elif event.key in [pg.K_r]:
@@ -223,6 +247,11 @@ async def main():
                         board_history = [tuple(board)]
                         is_selected = False
                         arrow_index = math.ceil(lily_count/2) -1
+                        crown_index = LEVELS[level_number].get("crown_index", None)
+                        if crown_index is not None:
+                            crown_history = [crown_index]
+                        else:
+                            crown_history = []
 
                     #z is undo
                     elif event.key in [pg.K_z] and len(board_history) >1:
@@ -230,6 +259,10 @@ async def main():
                         board = list(board_history[-1])
                         is_selected = False
                         arrow_index = math.ceil(lily_count/2) -1
+                        if crown_history:
+                            crown_history.pop()
+                            if crown_history:
+                                crown_index = crown_history[-1]
 
                     #m returns to menu
                     elif event.key in [pg.K_m]:
@@ -298,10 +331,10 @@ async def main():
             if is_selected == True:
                 indicator_left = get_landing_index(arrow_index, board[arrow_index], "left")
                 indicator_right = get_landing_index(arrow_index, board[arrow_index], "right")
-                if is_valid_landing(indicator_left, board):
+                if is_valid_landing(indicator_left, board, crown_index):
                     indicator_rect.center = ((indicator_left + 0.5) * WIDTH//lily_count, int(0.8*HEIGHT))
                     screen.blit(indicator, indicator_rect)
-                if is_valid_landing(indicator_right, board):
+                if is_valid_landing(indicator_right, board, crown_index):
                     indicator_rect.center = ((indicator_right + 0.5)*WIDTH//lily_count, int(0.8*HEIGHT))
                     screen.blit(indicator,indicator_rect)
 
@@ -328,8 +361,12 @@ async def main():
             else:
                 frog_stack_spacing = int(0.42*frog_width)
             for i in range(0, lily_count):
+
                 for ii in range(board[i]-1, -1, -1):
                     frog_rect.midbottom = ((i + 0.5)*WIDTH/lily_count, 0.8*HEIGHT-(frog_stack_spacing*ii))
+                    if i == crown_index and ii == board[i]-1:
+                        crown_rect.midbottom = (frog_rect.midtop[0], frog_rect.midtop[1] + 16)
+                        screen.blit(crown, crown_rect)
                     screen.blit(frog, frog_rect)
 
             if player_has_won(board) and game_state == "playing":
