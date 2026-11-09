@@ -50,20 +50,32 @@ arrow = pg.transform.scale(arrow_original, (100, 100))
 arrow_loc = arrow.get_rect()
 arrow_loc.center = 0.5*WIDTH/lily_count, HEIGHT*0.2
 
-wooden_sign_original = pg.image.load(str(BASE_PATH / "assets/images/wooden_sign.png")).convert_alpha()
+wooden_sign_original = pg.image.load(str(BASE_PATH / "assets/images/Tropical Floral Hanging Wooden Sign.png")).convert_alpha()
 wooden_sign = pg.transform.scale(wooden_sign_original, (1000, 600))
 wooden_sign_rect = wooden_sign.get_rect()
 wooden_sign_rect.midtop = (640, -100)
 
 menu_button_original = pg.image.load(str(BASE_PATH / "assets/images/menu_button.png")).convert_alpha()
-menu_button = pg.transform.scale(menu_button_original, (250,126))
+menu_button = pg.transform.scale(menu_button_original, (100,100))
 menu_button_rect = menu_button.get_rect()
 menu_button_rect.topright = (1270,0)
 
-undo_button_original = pg.image.load(str(BASE_PATH / "assets/images/clockwise-rotation.png")).convert_alpha()
-undo_button = pg.transform.scale(undo_button_original, (60,60))
+undo_button_original = pg.image.load(str(BASE_PATH / "assets/images/undo_button.png")).convert_alpha()
+undo_button = pg.transform.scale(undo_button_original, (100,100))
 undo_button_rect = undo_button.get_rect()
-undo_button_rect.topleft = (int(WIDTH*0.05), int(HEIGHT*0.05))
+undo_button_rect.topleft = (int(WIDTH*0.01), int(HEIGHT*0.01))
+
+restart_button_original = pg.image.load(str(BASE_PATH / "assets/images/restart_button.png")).convert_alpha()
+restart_button = pg.transform.scale(restart_button_original, (100,100))
+restart_button_rect = restart_button.get_rect()
+restart_button_rect.topright = (1270, 200)
+
+
+how_to_play_button_original = pg.image.load(str(BASE_PATH / "assets/images/how-to-play-button.png")).convert_alpha()
+how_to_play_button = pg.transform.scale(how_to_play_button_original, (100,100))
+how_to_play_button_rect = how_to_play_button.get_rect()
+how_to_play_button_rect.topright = (1270, 100) 
+
 
 checkmark_original = pg.image.load(str(BASE_PATH / "assets/images/checkmark.png")).convert_alpha()
 checkmark = pg.transform.scale(checkmark_original, (50, 50))

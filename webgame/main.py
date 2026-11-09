@@ -4,11 +4,16 @@ Created by Edwin Ma. Check out my GitHub at: https://github.com/edwinzma
 import sys
 import math
 import config
+import scene
+from enum import Enum
+
 
 import asyncio
 import pygame as pg
 
 from config import *
+from scene import Scene
+
 # Initialize only the display and fonts; the game has no audio.
 pg.display.init()
 pg.font.init()
@@ -27,17 +32,22 @@ from scenes.menu import *
 
 
 # async is needed for webapp
-async def main():
+async def main() -> None:
     global lily_count, lily_width, crown_history
     crown_index = config.crown_index
     # Initialize state here because assignments below make these variables local.
     level_number = config.level_number
-    game_state = config.game_state
     board = list(config.board)
     board_history = list(config.board_history)
     arrow_index = config.arrow_index
     is_selected = config.is_selected
-    clicked = config.clicked
+    game_state = scene.game_state
+
+    
+
+
+    
+
 
 
 
@@ -45,10 +55,9 @@ async def main():
     #apply changes
     pg.display.update()
 
+    #set rects
     level_rects = get_level_rectangles()
     level_to_home_button_rect = pg.Rect(1045, 605, 206, 74)
-
-    #PART 2: load images
     screen_rect = pg.Rect(0,0,WIDTH, HEIGHT)
 
     # Tutorial owns its page number and example; it never changes the real board.
@@ -88,7 +97,7 @@ async def main():
     )
 
     
-    #PART 3: Main loop
+    #Main loop
     running = True
     while running:
         # Let Pygbag/browser schedule frames instead of blocking in tick(60).
@@ -104,44 +113,43 @@ async def main():
                 running = False
                 break
 
-            if game_state == "home":
+            
+            if game_state == Scene.HOME:
                 game_state = handle_menu_input(event)
-                if game_state == "htp":
+                if game_state == Scene.HOWTOPLAY:
                     tutorial.reset()
 
-            elif game_state == "htp":
+            elif game_state == Scene.HOWTOPLAY:
                 next_state = tutorial.handle_event(event)
                 if next_state is not None:
                     game_state = next_state
                 # Do not let tutorial navigation also trigger gameplay controls.
                 continue
 
-            elif game_state == "levels": #Player is at the levels-screen
-                if event.type == pg.MOUSEBUTTONDOWN:
-                    if event.button == 1:
-                        #Select levels
-                        for index, rect in enumerate(level_rects):
+            elif game_state == Scene.LEVELS:
+                if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+                    #Select levels
+                    for index, rect in enumerate(level_rects):
+                        if rect.collidepoint(event.pos):
 
-                            if rect.collidepoint(event.pos):
+                            level_number = index + 1
 
-                                level_number = index + 1
+                            (lily_count, lily_width, board, board_history, arrow_index,
+                                is_selected, game_state, lily, indicator, lily_rects,
+                                lily_rect, indicator_rect) = start_level(
+                                LEVELS[level_number]["board"], level_graphics, WIDTH
+                            )
 
-                                (lily_count, lily_width, board, board_history, arrow_index,
-                                 is_selected, game_state, lily, indicator, lily_rects,
-                                 lily_rect, indicator_rect) = start_level(
-                                    LEVELS[level_number]["board"], level_graphics, WIDTH
-                                )
+                            crown_index = LEVELS[level_number].get("crown_index", None)
+                            if crown_index is not None:
+                                crown_history = [crown_index]
+                            else:
+                                crown_history = []
+                    #Home button
+                    if level_to_home_button_rect.collidepoint(pos):
+                        game_state = Scene.HOME
 
-                                crown_index = LEVELS[level_number].get("crown_index", None)
-                                if crown_index is not None:
-                                    crown_history = [crown_index]
-                                else:
-                                    crown_history = []
-                        #Home button
-                        if level_to_home_button_rect.collidepoint(pos):
-                            game_state = "home"
-
-            elif game_state == "won":
+            elif game_state == Scene.WON:
                 if event.type == pg.KEYDOWN or (event.type == pg.MOUSEBUTTONDOWN and event.button == 1):
                     if level_number + 1 in LEVELS:
                         level_number += 1
@@ -155,15 +163,15 @@ async def main():
                             crown_history = [crown_index]
                         else:
                             crown_history = []
-                        game_state = "playing"
+                        game_state = Scene.PLAYING
                     else:
-                        game_state = "complete"
+                        game_state = Scene.COMPLETE
 
-            elif game_state == "complete":
+            elif game_state == Scene.COMPLETE:
                 if event.type == pg.KEYDOWN or (event.type == pg.MOUSEBUTTONDOWN and event.button == 1):
-                    game_state = "home"
+                    game_state = Scene.HOME
 
-            elif game_state == "playing":
+            elif game_state == Scene.PLAYING:
 
                 #All the mouse controls for the game are handled here.
                 if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
@@ -190,17 +198,33 @@ async def main():
                         board = list(board_history[-1])
                         is_selected = False
                         arrow_index = math.ceil(lily_count/2) -1
-                        if crown_history:
-                            crown_history.pop()
-                            crown_index = crown_history[-1]
+                        # if crown_history:
+                        #     crown_history.pop()
+                        #     crown_index = crown_history[-1]
+                    
+                    elif menu_button_rect.collidepoint(event.pos):
+                        game_state = Scene.HOME
+
+                    elif how_to_play_button_rect.collidepoint(event.pos):
+                        game_state = Scene.HOWTOPLAY
+
+                    elif restart_button_rect.collidepoint(event.pos):
+                        board = list(LEVELS[level_number]['board'])
+                        board_history = [tuple(board)]
+                        is_selected = False
+                        arrow_index = math.ceil(lily_count/2) -1
+                        crown_index = LEVELS[level_number].get("crown_index", None)
+                        if crown_index is not None:
+                            crown_history = [crown_index]
+                        else:
+                            crown_history = []
+                        
 
                 elif event.type == pg.MOUSEMOTION:
                     for i, rect in enumerate(lily_rects):
                         if rect.collidepoint(event.pos):
                             if is_selected == False:
                                 arrow_index = i
-
-
 
 
                 #All the keyboard controls for the game are handled here.
@@ -243,7 +267,7 @@ async def main():
                             
                     #r is restart
                     elif event.key in [pg.K_r]:
-                        board = [1]*lily_count
+                        board = list(LEVELS[level_number]['board'])
                         board_history = [tuple(board)]
                         is_selected = False
                         arrow_index = math.ceil(lily_count/2) -1
@@ -266,7 +290,7 @@ async def main():
 
                     #m returns to menu
                     elif event.key in [pg.K_m]:
-                        game_state = "home"
+                        game_state = Scene.HOME
                         is_selected = False
                         arrow_index = math.ceil(lily_count/2) -1
                         
@@ -275,17 +299,17 @@ async def main():
             break
 
         #Drawing part of the loop
-        if game_state == "home":
+        if game_state == Scene.HOME:
             draw_menu(screen)
 
-        elif game_state == "complete":
+        elif game_state == Scene.COMPLETE:
             screen.fill("light blue")
             screen.blit(completed_text, (100, 300))
 
-        elif game_state == "htp":
+        elif game_state == Scene.HOWTOPLAY:
             tutorial.draw(screen)
 
-        elif game_state == "levels":
+        elif game_state == Scene.LEVELS:
             screen.blit(levelscreen, levelscreen_rect)
 
             # for i in range(0,len(level_rects)):
@@ -309,7 +333,7 @@ async def main():
                         4
                     )
 
-        if game_state == "playing" or game_state == "won":
+        if game_state == Scene.PLAYING or game_state == Scene.WON:
 
             #Fill background
             screen.blit(pond, pond_rect)
@@ -320,12 +344,12 @@ async def main():
             #Undo button
             screen.blit(undo_button, undo_button_rect)
 
-            if menu_button_rect.collidepoint(pos):
-                if pg.mouse.get_pressed()[0] == 1 and clicked == False:
-                    clicked = True
-                    game_state = "home"
-            if pg.mouse.get_pressed()[0] == 0:
-                clicked = False
+            #how-to-play button
+            screen.blit(how_to_play_button, how_to_play_button_rect)
+
+            #Restart button
+            screen.blit(restart_button, restart_button_rect)
+                
 
             #Draw the water ripples.
             if is_selected == True:
@@ -369,24 +393,16 @@ async def main():
                         screen.blit(crown, crown_rect)
                     screen.blit(frog, frog_rect)
 
-            if player_has_won(board) and game_state == "playing":
+            if player_has_won(board) and game_state == Scene.PLAYING:
                 completed_levels.add(level_number)
-                game_state = "won"
+                game_state = Scene.WON
                 
-        if game_state == "won":
+        if game_state == Scene.WON:
             screen.blit(wooden_sign, wooden_sign_rect)
             text_surface1, text_surface2 = win_text[level_number]
 
             screen.blit(text_surface1, (434, 123))
             screen.blit(text_surface2, (434, 232))
-
-
-        if pg.mouse.get_pressed()[0] == 1 and clicked == False:
-            clicked = True
-
-        if pg.mouse.get_pressed()[0] == 0:
-            clicked = False      
-
             
     
         pg.display.update()

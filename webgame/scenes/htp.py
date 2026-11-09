@@ -1,4 +1,5 @@
 import pygame as pg
+from scene import Scene
 
 class HowToPlay:
     """Three tutorial pages, drawn with text and the game's existing sprites."""
@@ -27,7 +28,7 @@ class HowToPlay:
         elif self.example_step < 3:
             self.example_step += 1
         else:
-            return "home"
+            return Scene.HOME
         return None
 
     def back(self):
@@ -40,14 +41,14 @@ class HowToPlay:
         # Return a new game state only when leaving the tutorial.
         if event.type == pg.KEYDOWN:
             if event.key in (pg.K_ESCAPE, pg.K_m):
-                return "home"
+                return Scene.HOME
             if event.key == pg.K_LEFT:
                 self.back()
             elif event.key in (pg.K_RIGHT, pg.K_SPACE, pg.K_RETURN):
                 return self.advance()
         elif event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
             if self.menu_rect.collidepoint(event.pos):
-                return "home"
+                return Scene.HOME
             if self.back_rect.collidepoint(event.pos):
                 self.back()
             elif self.next_rect.collidepoint(event.pos):

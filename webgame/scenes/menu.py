@@ -1,4 +1,5 @@
 import pygame as pg
+from scene import Scene
 
 from image_loading import *
 
@@ -17,10 +18,10 @@ def draw_menu(screen):
 def handle_menu_input(event):
     if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
         if play_button_rect.collidepoint(event.pos):
-            return "playing"
+            return Scene.PLAYING
         elif htp_button_rect.collidepoint(event.pos):
-            return "htp"
+            return Scene.HOWTOPLAY
         elif levels_button_rect.collidepoint(event.pos):
-            return "levels"
+            return Scene.LEVELS
 
-    return "home"
+    return Scene.HOME

@@ -14,7 +14,6 @@ BASE_PATH = Path(__file__).resolve().parent
 SIZE: tuple                 = (1280,720) #The display size of the screen. Currently cannot be changed.
 WIDTH:int                   = SIZE[0]
 HEIGHT:int                  = SIZE[1]
-game_state: str             = "home" #game states are "home", "htp", "playing", "won"
 lily_count: int             = 4 # Amount of lily's at the starting level
 lily_width: int             = set_lily_width(lily_count, WIDTH)
 lily_height: int            = set_lily_height()
@@ -25,8 +24,9 @@ board_history: list[tuple]  = [tuple(board)] #This memories all the previous sta
 arrow_rect: pg.Rect         = pg.Rect(0, 0, 100, 100) #dummy variable, later used for selector
 is_selected: bool           = False #Has the player selected anything. Start of as False
 indicator_scalar: float     = 1.4 #F stands for factor, which is the factor by which the indicator width and height are multiplied by the width and height of the lily
-clicked: bool               = False #Is the mouse clicked. Used to prevent multiple clicks from being registered when the mouse is held down.
 level_number: int           = 1 #The current level the player is on. Starts at 1.
+
+
 
 LEVELS = {
     1:  {"board": (1,1,1,1)},

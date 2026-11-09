@@ -1,4 +1,13 @@
 {
+    "editor.parameterHints.enabled": false,
+    "editor.quickSuggestions": {
+        "comments": "off",
+        "strings": "off",
+        "other": "off"
+    },
+    "editor.suggestOnTriggerCharacters": false,
+    "editor.inlineSuggest.enabled": false,
+    "editor.hover.enabled": "off",
     "cSpell.words": [
         "emscripten",
         "htp",

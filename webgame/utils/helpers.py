@@ -1,5 +1,6 @@
 #PART 1: Define functions
 import pygame as pg
+from scene import Scene
 
 #from button import Button
 
@@ -111,7 +112,7 @@ def start_level(starting_board: tuple, level_graphics: dict, width: int) -> tupl
     board = list(starting_board)
     arrow_index = lily_count // 2
     is_selected = False
-    game_state = "playing"
+    game_state = Scene.PLAYING
     lily_width = set_lily_width(lily_count, width)
     # Reuse prepared graphics; no resizing here.
     lily, indicator, lily_rects = level_graphics[lily_count]
