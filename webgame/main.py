@@ -42,16 +42,8 @@ async def main() -> None:
     arrow_index = config.arrow_index
     is_selected = config.is_selected
     game_state = scene.game_state
+    trampoline_indexes = LEVELS[level_number].get("trampoline_indexes", ())
 
-    
-
-
-    
-
-
-
-
-    
     #apply changes
     pg.display.update()
 
@@ -145,6 +137,7 @@ async def main() -> None:
                                 crown_history = [crown_index]
                             else:
                                 crown_history = []
+                            trampoline_indexes = LEVELS[level_number].get("trampoline_indexes", ())
                     #Home button
                     if level_to_home_button_rect.collidepoint(pos):
                         game_state = Scene.HOME
@@ -153,12 +146,14 @@ async def main() -> None:
                 if event.type == pg.KEYDOWN or (event.type == pg.MOUSEBUTTONDOWN and event.button == 1):
                     if level_number + 1 in LEVELS:
                         level_number += 1
+
                         (lily_count, lily_width, board, board_history, arrow_index,
-                         is_selected, game_state, lily, indicator, lily_rects,
-                         lily_rect, indicator_rect) = start_level(
+                        is_selected, game_state, lily, indicator, lily_rects,
+                        lily_rect, indicator_rect) = start_level(
                             LEVELS[level_number]["board"], level_graphics, WIDTH
                         )
                         crown_index = LEVELS[level_number].get("crown_index", None)
+                        trampoline_indexes = LEVELS[level_number].get("trampoline_indexes", ())
                         if crown_index is not None:
                             crown_history = [crown_index]
                         else:
@@ -182,7 +177,7 @@ async def main() -> None:
                                 is_selected = True
                             elif is_selected == True and arrow_index == i:
                                 is_selected = False
-                            elif is_selected == True and i in [get_landing_index(arrow_index, board[arrow_index], "left"), get_landing_index(arrow_index, board[arrow_index], "right")] and is_valid_landing(i, board, crown_index):
+                            elif is_selected == True and i in [get_landing_index(arrow_index, board[arrow_index], "left", trampoline_indexes), get_landing_index(arrow_index, board[arrow_index], "right", trampoline_indexes)] and is_valid_landing(i, board, crown_index):
                                 board[i] += board[arrow_index]
                                 if arrow_index == crown_index:
                                     crown_index = i
@@ -242,7 +237,7 @@ async def main() -> None:
                         is_selected = False
 
                     elif event.key in [pg.K_a, pg.K_LEFT] and is_selected == True:
-                        landing_index = get_landing_index(arrow_index, board[arrow_index],"left")
+                        landing_index = get_landing_index(arrow_index, board[arrow_index],"left", trampoline_indexes)
                         if is_valid_landing(landing_index, board, crown_index) == True:
                             board[landing_index] = board[landing_index] +board[arrow_index]
                             board[arrow_index] = 0
@@ -254,7 +249,7 @@ async def main() -> None:
                             crown_history.append(crown_index)
 
                     elif event.key in [pg.K_d, pg.K_RIGHT] and is_selected == True:
-                        landing_index = get_landing_index(arrow_index, board[arrow_index],"right")
+                        landing_index = get_landing_index(arrow_index, board[arrow_index],"right", trampoline_indexes)
                         if is_valid_landing(landing_index, board, crown_index) == True:
                             board[landing_index] = board[landing_index] +board[arrow_index]
                             board[arrow_index] = 0
@@ -353,8 +348,8 @@ async def main() -> None:
 
             #Draw the water ripples.
             if is_selected == True:
-                indicator_left = get_landing_index(arrow_index, board[arrow_index], "left")
-                indicator_right = get_landing_index(arrow_index, board[arrow_index], "right")
+                indicator_left = get_landing_index(arrow_index, board[arrow_index], "left", trampoline_indexes)
+                indicator_right = get_landing_index(arrow_index, board[arrow_index], "right", trampoline_indexes)
                 if is_valid_landing(indicator_left, board, crown_index):
                     indicator_rect.center = ((indicator_left + 0.5) * WIDTH//lily_count, int(0.8*HEIGHT))
                     screen.blit(indicator, indicator_rect)
@@ -385,6 +380,10 @@ async def main() -> None:
             else:
                 frog_stack_spacing = int(0.42*frog_width)
             for i in range(0, lily_count):
+                if i in trampoline_indexes:
+                    trampoline_rect.midbottom = ((i + 0.5)*WIDTH/lily_count, 0.8*HEIGHT)
+                    screen.blit(trampoline, trampoline_rect)
+                    continue
 
                 for ii in range(board[i]-1, -1, -1):
                     frog_rect.midbottom = ((i + 0.5)*WIDTH/lily_count, 0.8*HEIGHT-(frog_stack_spacing*ii))

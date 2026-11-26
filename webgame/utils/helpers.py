@@ -18,14 +18,27 @@ def get_jump_distance(frog_count:int) -> int:
         return 2*frog_count -1
 
 
-def get_landing_index(arrow_index:int, frog_count:int, direction:str) -> int:
+def get_landing_index(arrow_index:int, frog_count:int, direction:str, trampoline_indexes=()) -> int:
     """Returns the index of the lily pad the frog will land on"""
     distance = get_jump_distance(frog_count)
-
-    if direction == "left":
-        return arrow_index -distance
-    elif direction == "right":
-        return arrow_index + distance
+    if distance == 0:
+        return arrow_index
+    if trampoline_indexes is None:
+        if direction == "left":
+            return arrow_index - distance
+        elif direction == "right":
+            return arrow_index + distance
+    else:
+        if direction == "left":
+            landing = arrow_index - distance
+            while landing in trampoline_indexes:
+                landing -= distance
+            return landing
+        elif direction == "right":
+            landing = arrow_index + distance
+            while landing in trampoline_indexes:
+                landing += distance
+            return landing
 
 
 def is_valid_landing(landing_index:int, board:list = [], crown_index:int = None) -> bool:

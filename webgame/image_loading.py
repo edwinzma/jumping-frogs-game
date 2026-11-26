@@ -84,3 +84,7 @@ checkmark_rect = checkmark.get_rect()
 crown_original = pg.image.load(str(BASE_PATH / "assets/images/crown.png")).convert_alpha()
 crown = pg.transform.scale(crown_original, (80, 80))
 crown_rect = crown.get_rect()
+
+trampoline_original = pg.image.load(str(BASE_PATH / "assets/images/trampoline.png")).convert_alpha()
+trampoline = pg.transform.scale(trampoline_original, (80,80))
+trampoline_rect = trampoline.get_rect()
